@@ -20,3 +20,12 @@ These versions are known to work:
 6.  Under "Switch Board", pick "pico_w" or "pico2_w".
 7.  Under "Switch Build Type", pick "Release" or "Debug".
 8.  Click "Compile Project".
+
+
+## Options in CMakeLists.txt
+
+| Option | Default | Effect |
+|----|----|----|
+| `ENABLE_USB_LOGGING` | `OFF` | Log USB device events and every forwarded HID report. |
+| `ENABLE_HEARTBEAT_LOGS` | `OFF` | Log a heartbeat line every 5 seconds to show Core 0 is alive. |
+| `UART_BAUD_RATE` | `115200` | Baud rate of the log UART. |
