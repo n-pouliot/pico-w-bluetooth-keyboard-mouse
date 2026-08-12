@@ -1,4 +1,4 @@
-# Pico W / Pico 2 W BLE to USB HID Bridge
+# Pico W / Pico 2 W - BLE to USB HID Bridge
 
 Firmware that turns a Raspberry Pi Pico W or Pico 2 W into a wired adapter for a
 Bluetooth keyboard or mouse. The board connects to the BLE device as a Central
