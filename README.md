@@ -55,9 +55,7 @@ not turn into input lag.
 - [Verified devices](docs/verified_devices.md)
 
 ## License
-
-Built from the TinyUSB `dev_hid_composite` and BTstack `hog_host_demo` samples;
-see LICENSE.TXT for the terms of both.
+see LICENSE.TXT.
 
 ## Acknowledgments
 
