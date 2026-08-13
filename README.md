@@ -24,7 +24,7 @@ This software is firmware for the Raspberry Pi Pico W / Pico 2 W. It allows you 
 3.  The LED goes solid once the device is connected, and the PC sees a USB input
     device.
 
-If your device requires a paring code, you will need to read that from the
+If your device requires a pairing code, you will need to read that from the
 logs. The firmware logs what it is doing over the UART pins. See
 [docs/troubleshooting.md](docs/troubleshooting.md) for how to read it.
 
@@ -55,7 +55,7 @@ not turn into input lag.
 - [Verified devices](docs/verified_devices.md)
 
 ## License
-see LICENSE.TXT.
+See LICENSE.TXT.
 
 ## Acknowledgments
 
