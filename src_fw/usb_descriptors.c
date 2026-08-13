@@ -40,12 +40,9 @@
 #define USB_VID     0xCafe
 #define USB_BCD     0x0200
 
-// @@add
-// =====>
 extern bool is_ble_app_state_ready(void);
 extern const uint8_t* get_ble_hid_report_descriptor_data(void);
 extern uint16_t get_ble_hid_report_descriptor_len(void);
-// <=====
 
 //--------------------------------------------------------------------+
 // Device Descriptors
@@ -96,8 +93,6 @@ uint8_t const desc_hid_report[] =
 uint8_t const * tud_hid_descriptor_report_cb(uint8_t instance)
 {
     (void) instance;
-    // @@chg
-    // =====>
     // When connected via BLE, return the Report Descriptor from the BLE device
     if (is_ble_app_state_ready() && get_ble_hid_report_descriptor_data() != NULL) {
         return get_ble_hid_report_descriptor_data();
@@ -105,7 +100,6 @@ uint8_t const * tud_hid_descriptor_report_cb(uint8_t instance)
         // When not connected, return the default descriptor
         return desc_hid_report;
     }   
-    // <=====
 }
 
 //--------------------------------------------------------------------+
@@ -122,8 +116,6 @@ enum
 
 #define EPNUM_HID   0x81
 
-// @@chg
-// =====>
 #if 0
 uint8_t const desc_configuration[] =
 {
@@ -137,7 +129,6 @@ uint8_t const desc_configuration[] =
 #define DYNAMIC_CONFIG_BUF_SIZE (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN)
 // Align the buffer to 4 bytes to ensure efficient and safe access
 static uint8_t desc_configuration[DYNAMIC_CONFIG_BUF_SIZE] __attribute__((aligned(4)));
-// <=====
 
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR
@@ -148,8 +139,6 @@ uint8_t const * tud_descriptor_configuration_cb(uint8_t index)
     (void) index; // for multiple configurations
 
     // This example use the same configuration for both high and full speed mode
-    // @@add
-    // =====>
     // Pointer to the current position in the descriptor buffer
     uint8_t *p_desc = desc_configuration;
     uint8_t const * const desc_end = p_desc + DYNAMIC_CONFIG_BUF_SIZE;
@@ -214,7 +203,6 @@ uint8_t const * tud_descriptor_configuration_cb(uint8_t index)
     p_desc += sizeof(tusb_desc_endpoint_t);
 
     TU_ASSERT(p_desc <= desc_end, NULL);
-    // <=====
 
     return desc_configuration;
 }
@@ -235,11 +223,8 @@ enum {
 char const *string_desc_arr[] =
 {
     (const char[]) { 0x09, 0x04 }, // 0: is supported language is English (0x0409)
-    // @@chg
-    // =====>
     "Shiomachi Software",          // 1: Manufacturer
     "BLE to USB HID Bridge",       // 2: Product
-    // <=====
     NULL,                          // 3: Serials will use unique ID if possible
 };
 

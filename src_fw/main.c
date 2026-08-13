@@ -25,34 +25,24 @@
 
 #include "bsp/board_api.h"
 #include "tusb.h"
-// @@add
-// =====>
 #include "Common.h"
-// <=====
 
 //--------------------------------------------------------------------+
 // MACROS
 //--------------------------------------------------------------------+
-// @@add
-// =====>
 #define USB_REINIT_STABILIZATION_DELAY 100 // ms
 #define LED_BLINKING_INTERVAL 200 // ms
 #define HEARTBEAT_INTERVAL 5000 // ms
-// <=====
+
 //--------------------------------------------------------------------+
 // GLOBAL VARIABLES
 //--------------------------------------------------------------------+
-// @@add
-// =====>
 volatile bool g_usb_reinit_request = false; // Flag to request USB re-initialization when BLE HID connection is established
 extern volatile bool g_cyw43_initialized;   // Set by Core 1 once cyw43_arch_init() has returned
-// <=====
 
 //--------------------------------------------------------------------+
 // FUNCTION PROTOTYPES
 //--------------------------------------------------------------------+
-// @@add
-// =====>
 void usb_dev_main(void);
 void hid_task(void);
 void led_blinking_task(void);
@@ -60,7 +50,6 @@ bool send_hid_report(void);
 
 extern bool is_ble_app_state_ready(void);
 extern void ble_host_main(void);
-// <=====
 
 /*------------- MAIN -------------*/
 int main(void)
@@ -74,8 +63,6 @@ int main(void)
         board_init_after_tusb();
     }      
     
-    // @@chg
-    // =====>
     stdio_init_all();
     CMN_Init();
 
@@ -90,11 +77,8 @@ int main(void)
     usb_dev_main();
 
     return 0;
-    // <=====
 }
 
-// @@add
-// =====>
 //--------------------------------------------------------------------+
 // Main loop for the USB device (runs on Core0).
 //--------------------------------------------------------------------+
@@ -133,7 +117,6 @@ void usb_dev_main(void)
         hid_task();          // Run HID report sending task
     }
 }
-// <=====
 
 //--------------------------------------------------------------------+
 // Device callbacks
@@ -170,8 +153,6 @@ void tud_resume_cb(void)
 // USB HID
 //--------------------------------------------------------------------+
 
-// @@chg
-// =====>
 // Dequeue and send one HID report from the queue to the USB host.
 // return true if a report was successfully sent, false otherwise.
 bool send_hid_report(void)
@@ -205,18 +186,14 @@ bool send_hid_report(void)
  
     return bRet;
 }
-// <=====
 
 //--------------------------------------------------------------------+
 // HID TASK
 //--------------------------------------------------------------------+
 void hid_task(void)
 {
-    // @@chg
-    // =====>
     // Dequeue and send one HID report.
     (void)send_hid_report();
-    // <=====
 }
 
 // Invoked when sent REPORT successfully to host
@@ -226,10 +203,7 @@ void tud_hid_report_complete_cb(uint8_t instance, uint8_t const* report, uint16_
 {
     (void) instance;
     (void) len;
-    // @@chg
-    // =====>
     (void) report;
-    // <=====
 }
 
 // Invoked when received GET_REPORT control request
@@ -253,13 +227,10 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_
 {
     USB_LOG("HID SET_REPORT (id=%u type=%u size=%u)\n", report_id, report_type, bufsize);
     (void) instance;
-    // @@chg
-    // =====>
     (void) report_id;
     (void) report_type;
     (void) buffer;
     (void) bufsize;
-    // <=====
 }
 
 //--------------------------------------------------------------------+
@@ -269,8 +240,6 @@ void led_blinking_task(void)
 {
     static uint32_t start_ms = 0;
     static bool led_state = false;
-    // @@chg
-    // =====>
     // The LED hangs off the CYW43, which Core 1 brings up. Touching its SPI bus
     // from Core 0 before that init has finished wedges the transfer and takes
     // this core down with it, so stay away until Core 1 says it is ready.
@@ -292,5 +261,4 @@ void led_blinking_task(void)
         led_state = !led_state;
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_state);
     }
-    // <=====
 }

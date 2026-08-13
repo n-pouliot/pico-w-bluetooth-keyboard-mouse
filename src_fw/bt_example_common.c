@@ -9,22 +9,16 @@
 #include "pico/cyw43_arch.h"
 #include "pico/stdlib.h"
 #include "btstack.h"
-// @@add
-// =====>
 #include "Common.h"
-// <=====
 
 // Start the btstack example
 int btstack_main(int argc, const char * argv[]);
 
 static btstack_packet_callback_registration_t hci_event_callback_registration;
 
-// @@add
-// =====>
 // Set once cyw43_arch_init() has returned on Core 1. Core 0 drives the status
 // LED through the same wireless chip and must not touch it before then.
 volatile bool g_cyw43_initialized = false;
-// <=====
 
 static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size){
     UNUSED(size);
@@ -49,11 +43,8 @@ int ble_bridge_bt_example_init(void) {
         return -1;
     }
 
-    // @@add
-    // =====>
     // The wireless chip is up; Core 0 may now drive the status LED.
     g_cyw43_initialized = true;
-    // <=====
 
     // inform about BTstack state
     hci_event_callback_registration.callback = &packet_handler;

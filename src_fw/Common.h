@@ -13,8 +13,6 @@
 #include "Type.h"
 
 // [Logging]
-// @@add
-// =====>
 // Both cores share a single serial console, so every message is tagged with the
 // subsystem that emitted it. USB tracing is chatty and only useful when
 // debugging enumeration, so it is compiled out unless CMake enables it.
@@ -26,7 +24,6 @@
 #else
 #define USB_LOG(...) ((void)0)
 #endif
-// <=====
 
 // [Definitions]
 // Maximum size of the HID queue

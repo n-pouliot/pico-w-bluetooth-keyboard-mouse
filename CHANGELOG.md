@@ -1,5 +1,14 @@
 # Changelog
 
+## 20260813
+
+- Changes in `hog_host_demo.c`
+  - Fixed an issue where the BLE connection state and LED indication would mismatch when the BLE device was rapidly power-cycled.
+  - Reordered function definitions to improve source code readability.
+
+- Global Changes (All source files)
+  - Code cleanup: Removed modification history comments such as `@add`, `@chg`, and `@del`.
+
 ## 20260810
 
 ### Added
