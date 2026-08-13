@@ -1,11 +1,17 @@
 # Pico W / Pico 2 W - BLE to USB HID Bridge
 
-Firmware that turns a Raspberry Pi Pico W or Pico 2 W into a wired adapter for a
-Bluetooth keyboard or mouse. The board connects to the BLE device as a Central
-and presents it to the PC as an ordinary USB HID device, so the keyboard works
-on machines without Bluetooth and in UEFI setup screens.
+This software is firmware for the Raspberry Pi Pico W / Pico 2 W. It allows you to use a single BLE HID device, such as a keyboard or mouse, as a wired USB device, even on PCs without Bluetooth functionality. It operates as a BLE Central (Host), forwarding input data from the connected BLE device to the host PC via USB, where it is recognized as a standard USB HID device.
+      
+**Key Benefits & Use Cases**  
 
-For the opposite direction, USB to BLE, see
+* **Works even before OS boot**  
+  It can be used even before the OS Bluetooth drivers are loaded (such as during UEFI/BIOS setup or OS installation).  
+  
+* **Share and switch between multiple PCs via a USB switch**  
+  Because it is recognized as a wired USB device, it is compatible with USB switches.   
+  *(Note: Compatibility with KVM switches is currently unverified.)*  
+
+*For the opposite direction, USB to BLE, see
 [pico_usb_ble_hid_bridge](https://github.com/shiomachisoft/pico_usb_ble_hid_bridge).
 
 <img width="716" height="391" alt="image" src="https://github.com/user-attachments/assets/6d4410d5-2912-4bd5-93dc-8aef206fb2b0" />
