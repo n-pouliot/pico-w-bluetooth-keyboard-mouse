@@ -55,4 +55,4 @@ See LICENSE.TXT.
 
 ## Acknowledgments
 
-* **[mateibarbu19](https://github.com/mateibarbu19)** - For the changes and implementation in version 20260810.
+* [mateibarbu19](https://github.com/mateibarbu19) - For the changes and implementation in version 20260810.
