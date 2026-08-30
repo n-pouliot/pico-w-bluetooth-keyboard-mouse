@@ -3,7 +3,7 @@
 ## 20260830
 
 - Support for Devices with Privacy Addresses (RPA)
-  - Smoothly and automatically reconnects to paired Bluetooth devices (such as modern wireless keyboards and mice) that periodically change their address for privacy.
+  - Smoothly and automatically reconnects to paired Bluetooth devices (such as modern keyboards and mice) that periodically change their address for privacy.
 - Simplified Pairing
   - Eliminated manual passkey/PIN entry, allowing Bluetooth devices to pair seamlessly and automatically ("Just Works" pairing).
 - Device Name Update
