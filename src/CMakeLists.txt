@@ -64,8 +64,8 @@ target_link_libraries(picow_ble_usb_hid_bridge
     tinyusb_device
     tinyusb_board
     pico_btstack_ble
-    pico_btstack_classic
     pico_btstack_cyw43
+    pico_btstack_flash_bank
     pico_cyw43_arch_threadsafe_background
     )   
 target_include_directories(picow_ble_usb_hid_bridge PRIVATE

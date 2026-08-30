@@ -21,7 +21,7 @@ Both cores share the console, so each line is tagged with the subsystem that
 wrote it: `[SYS]`, `[BLE]` or `[USB]`. Some receivers cannot keep up with the
 default 115200 — a bit-banged software UART on an AVR, for instance, is
 unreliable much above 38400.
-So, build with a matching [`UART_BAUD_RATE`, say 9600](building.md).
+So, build with a matching [`UART_BAUD_RATE`, say 9600](build.md).
 
 ## A keyboard pairs, then nothing happens
 
@@ -38,20 +38,6 @@ notifications, so discovery never finishes and the security manager times out.
 The firmware defines `ENABLE_GATT_LEGACY_CCC_DISCOVERY` in `btstack_config.h` to
 select the older two-step discovery instead. It costs one extra round trip and
 copes with descriptors in any order.
-
-## The bridge goes quiet shortly after power-on
-
-`[SYS] Launching the BLE host on Core 1` is printed and the board then stops
-responding, sometimes before the LED starts blinking. The Pico 2 W hits this
-more often than the Pico W.
-
-The LED is wired to the CYW43 wireless chip rather than to a GPIO, so Core 0's
-LED task and Core 1's `cyw43_arch_init()` both reach for the same SPI bus during
-the first milliseconds after boot. If Core 0 gets there first the transfer never
-completes and it hangs, taking USB down with it.
-
-`ble_bridge_bt_example_init()` sets `g_cyw43_initialized` once the chip is up,
-and `led_blinking_task()` does nothing until it sees that flag.
 
 ## The keyboard re-appears on the PC when the BLE link comes up
 

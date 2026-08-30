@@ -31,24 +31,20 @@
 // MACROS
 //--------------------------------------------------------------------+
 #define USB_REINIT_STABILIZATION_DELAY 100 // ms
-#define LED_BLINKING_INTERVAL 200 // ms
 #define HEARTBEAT_INTERVAL 5000 // ms
 
 //--------------------------------------------------------------------+
 // GLOBAL VARIABLES
 //--------------------------------------------------------------------+
 volatile bool g_usb_reinit_request = false; // Flag to request USB re-initialization when BLE HID connection is established
-extern volatile bool g_cyw43_initialized;   // Set by Core 1 once cyw43_arch_init() has returned
 
 //--------------------------------------------------------------------+
 // FUNCTION PROTOTYPES
 //--------------------------------------------------------------------+
 void usb_dev_main(void);
 void hid_task(void);
-void led_blinking_task(void);
 bool send_hid_report(void);
 
-extern bool is_ble_app_state_ready(void);
 extern void ble_host_main(void);
 
 /*------------- MAIN -------------*/
@@ -82,7 +78,7 @@ int main(void)
 //--------------------------------------------------------------------+
 // Main loop for the USB device (runs on Core0).
 //--------------------------------------------------------------------+
-// This function loops indefinitely, handling USB events, LED blinking, and HID tasks.
+// This function loops indefinitely, handling USB events and HID tasks.
 // It also handles USB re-initialization requests from Core1.
 void usb_dev_main(void)
 {
@@ -99,21 +95,38 @@ void usb_dev_main(void)
         }
 #endif
 
-        // Check for USB re-initialization request from Core1 (BLE host)
+        // Handle USB re-initialization request from Core1 (BLE host) without blocking
+        static enum {
+            USB_REINIT_IDLE = 0,
+            USB_REINIT_WAIT_STABILIZATION
+        } usb_reinit_state = USB_REINIT_IDLE;
+        static uint32_t usb_reinit_start_ms = 0;
+
         if (g_usb_reinit_request) {
             g_usb_reinit_request = false;
             USB_LOG("Re-initialization requested by the BLE host\n");
-            if (tud_mounted()) {
-                tud_disconnect(); // Disconnect the USB device
-                board_delay(USB_REINIT_STABILIZATION_DELAY); // Wait a bit for stabilization
+            if (usb_reinit_state == USB_REINIT_IDLE) {
+                if (tud_mounted()) {
+                    tud_disconnect(); // Disconnect the USB device
+                    usb_reinit_start_ms = board_millis();
+                    usb_reinit_state = USB_REINIT_WAIT_STABILIZATION;
+                } else {
+                    CMN_ClearQueue(CMN_QUE_KIND_HID_RPT);
+                    tud_connect();
+                }
             }
-            // Clear any pending HID reports from the queue before reconnecting.
-            CMN_ClearQueue(CMN_QUE_KIND_HID_RPT);
-            tud_connect();
+        }
+
+        if (usb_reinit_state == USB_REINIT_WAIT_STABILIZATION) {
+            if (board_millis() - usb_reinit_start_ms >= USB_REINIT_STABILIZATION_DELAY) {
+                usb_reinit_state = USB_REINIT_IDLE;
+                // Clear any pending HID reports from the queue before reconnecting.
+                CMN_ClearQueue(CMN_QUE_KIND_HID_RPT);
+                tud_connect();
+            }
         }
 
         tud_task();          // Run TinyUSB device task
-        led_blinking_task(); // Run LED blinking task
         hid_task();          // Run HID report sending task
     }
 }
@@ -231,34 +244,4 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_
     (void) report_type;
     (void) buffer;
     (void) bufsize;
-}
-
-//--------------------------------------------------------------------+
-// BLINKING TASK
-//--------------------------------------------------------------------+
-void led_blinking_task(void)
-{
-    static uint32_t start_ms = 0;
-    static bool led_state = false;
-    // The LED hangs off the CYW43, which Core 1 brings up. Touching its SPI bus
-    // from Core 0 before that init has finished wedges the transfer and takes
-    // this core down with it, so stay away until Core 1 says it is ready.
-    if (!g_cyw43_initialized) return;
-
-    const uint32_t blink_interval = LED_BLINKING_INTERVAL;
-
-    if (is_ble_app_state_ready()) {
-        // Turn on LED when in READY state
-        if (!led_state) {
-            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, true);
-            led_state = true;
-        }
-    } else {
-        // Blink every 200ms when not in READY state
-        if ( board_millis() - start_ms < blink_interval) return; // not enough time
-        start_ms += blink_interval;
-
-        led_state = !led_state;
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, led_state);
-    }
 }

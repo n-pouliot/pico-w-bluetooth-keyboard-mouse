@@ -24,10 +24,6 @@ This software is firmware for the Raspberry Pi Pico W / Pico 2 W. It allows you 
 3.  The LED goes solid once the device is connected, and the PC sees a USB input
     device.
 
-If your device requires a pairing code, you will need to read that from the
-logs. The firmware logs what it is doing over the UART pins. See
-[docs/troubleshooting.md](docs/troubleshooting.md) for how to read it.
-
 After the first pairing, the Pico persistently stores which device it needs to
 reconnect to, at the next power-on. Some peripherals sleep deeply, and do not
 reconnect unprompted — press a key or two to wake them up and reconnect.
@@ -50,7 +46,7 @@ not turn into input lag.
 
 ## Documentation
 
-- [Building in VS Code](docs/build_vscode.md)
+- [Building in VS Code](docs/build.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Verified devices](docs/verified_devices.md)
 

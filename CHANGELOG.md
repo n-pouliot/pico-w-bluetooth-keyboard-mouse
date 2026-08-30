@@ -1,5 +1,16 @@
 # Changelog
 
+## 20260830
+
+- Support for Devices with Privacy Addresses (RPA)
+  - Smoothly and automatically reconnects to paired Bluetooth devices (such as modern wireless keyboards and mice) that periodically change their address for privacy.
+- Simplified Pairing
+  - Eliminated manual passkey/PIN entry, allowing Bluetooth devices to pair seamlessly and automatically ("Just Works" pairing).
+- Device Name Update
+  - Changed the default Bluetooth display name from `"HOG Host"` to `"BLE-USB HID Bridge"`.
+- Other Improvements
+  - Various minor bug fixes and stability enhancements.
+
 ## 20260813
 
 - Changes in `hog_host_demo.c`
