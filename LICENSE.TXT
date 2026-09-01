@@ -1,5 +1,7 @@
-picow_ble_usb_hid_bridge is based on dev_hid_composite and BlueKitchen's hog_host_demo. It also uses BlueKitchen's BTstack. 
-The licensing of picow_ble_usb_hid_bridge is subject to these licenses.
+xbox-pico is derived from Shiomachi Software's picow_ble_usb_hid_bridge at
+commit 2c6a303d1f172e56b271283af978efdcc483a389. That project is based on
+dev_hid_composite and BlueKitchen's hog_host_demo and uses BlueKitchen's
+BTstack. xbox-pico remains subject to the licenses reproduced below.
 
 //////////////////////////////////////////////////////////////////////////////
 // BlueKitchen's BTstack supplemental license for Raspberry Pi Pico series

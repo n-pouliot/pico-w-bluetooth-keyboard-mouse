@@ -1,15 +1,24 @@
-# Verified Devices
+# Verified devices
 
-| Device | Type | Board |
-| :--- | :--- | :--- |
-| Sanwa Supply MA-SBB314 | Mouse | Pico W, Pico 2 W |
-| ELECOM TK-FBM119 | Keyboard | Pico W, Pico 2 W |
-| Bluetouch Keyboard and Mouse (Smartphone App) (*1) | Keyboard, Mouse | Pico W, Pico 2 W |
+No physical keyboard, mouse, Raspberry Pi Pico W, PC USB host, or Xbox has been
+verified with the `xbox-pico` dual-device revision yet.
 
----
+The starting upstream project listed several devices tested with its own
+single-device/dynamic-descriptor firmware. Those results do **not** verify this
+substantially different canonical dual-interface implementation and are not
+carried forward as compatibility claims.
 
-### Notes
-(*1) 
-A Bluetooth HID emulation Android app (tested on Android 17): [Bluetouch on Google Play](https://play.google.com/store/apps/details?id=com.seed.wirelessmouse&hl=en)  
-Please select 'Enable Discoverable Mode' in the Bluetouch app during both initial pairing and reconnection.  
-During initial pairing, a pairing request will prompt you to allow the connection. If you do not see this prompt, swipe down from the top of your screen to check the notification panel.
+Add a device here only after recording:
+
+- exact manufacturer and model;
+- whether it is keyboard or mouse and that it uses BLE HID;
+- Report Map acceptance result;
+- pairing method;
+- simultaneous operation with the other role;
+- disconnect/reconnect and power-cycle behavior;
+- PC operating system and observed USB topology; and
+- firmware commit and UF2 SHA-256.
+
+Xbox acceptance, if tested later, must be recorded separately from PC behavior
+and must name the console software version and the title tested. A game's
+keyboard/mouse support does not imply support in every other game.

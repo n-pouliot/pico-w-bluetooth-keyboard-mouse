@@ -518,7 +518,8 @@ static int test_descriptor_mutation_smoke(void)
     size_t byte;
     uint8_t bit;
 
-    CHECK(ARRAY_LENGTH(boot_keyboard_map) <= ARRAY_LENGTH(mutated));
+    _Static_assert(ARRAY_LENGTH(boot_keyboard_map) <= ARRAY_LENGTH(mutated),
+                   "mutation buffer must hold the canonical descriptor");
     for (byte = 0u; byte < ARRAY_LENGTH(boot_keyboard_map); ++byte) {
         for (bit = 0u; bit < 8u; ++bit) {
             memcpy(mutated, boot_keyboard_map,

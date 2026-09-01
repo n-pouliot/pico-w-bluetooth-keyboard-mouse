@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased — dual BLE HID bridge
+
+- Target the original Raspberry Pi Pico W and expose a static, boot-capable USB
+  keyboard plus a static, boot-capable USB mouse on separate interfaces.
+- Replace dynamic BLE Report Map passthrough with bounded descriptor parsing and
+  canonical keyboard/mouse report translation.
+- Support one BLE HID keyboard and one BLE HID mouse concurrently with explicit
+  per-device state and independent reconnect behavior.
+- Add role-specific persistent authorization records with CRC32 validation and
+  separate keyboard, mouse, and all-role maintenance-clear images.
+- Add cross-core release barriers and TinyUSB completion tracking to prevent
+  stale or stuck input after disconnects and failed transfers.
+- Restrict first-run enrollment to a 120-second window and Secure Connections
+  Just Works with 16-byte encryption keys; unknown devices are ignored outside
+  an enrollment window.
+- Add host tests for HID parsing/normalization, persistence, cross-core
+  mailboxes, malformed input, exhaustive mutation of the canonical boot
+  keyboard descriptor, and randomized descriptor mutation smoke tests.
+- Harden BTstack callback routing, HIDS service preflight, connection-event and
+  timeout ownership, exact rejected-bond cleanup, radio restart retries, USB
+  suspend/resume, boot-protocol mouse masking, and overflow fail-safe behavior.
+- Add four reproducible, SHA-256-recorded PRE_HARDWARE_TEST/maintenance UF2
+  artifacts and remove stale single-device binaries.
+- Add architecture research, safety/recovery guidance, reproducible build
+  instructions, beginner flashing instructions, and a staged hardware plan.
+
+This revision remains **PRE-HARDWARE TEST**. Physical Pico W, BLE peripheral,
+PC USB, power/current, latency, and Xbox behavior are not yet verified.
+
 ## 20260830
 
 - Support for Devices with Privacy Addresses (RPA)

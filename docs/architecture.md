@@ -53,7 +53,7 @@ Bluetooth names never determine a role. GAP Appearance and HID service advertisi
 - keyboard: Generic Desktop Keyboard/Keypad Application Collection and supported Keyboard/Keypad inputs;
 - mouse: Generic Desktop Mouse Application Collection with signed relative X and Y inputs.
 
-A map that is malformed, oversized, absolute-pointer-only, roleless, or contains both accepted keyboard and mouse roles is rejected. A conflicting specific GAP Appearance is rejected.
+A map that is malformed, oversized, absolute-pointer-only, roleless, or contains both accepted keyboard and mouse roles is rejected. Appearance is never trusted as final classification; the compiled Report Map role wins.
 
 The descriptor compiler is allocation-free and has explicit limits:
 
@@ -95,18 +95,19 @@ BTstack continues to own LTK/IRK/security records. The application stores two in
 
 Load requires exact length, valid magic/version/role/type/address/reserved fields, valid CRC, and a matching acceptable BTstack bond. Corruption or a missing key affects only that role.
 
-Application flash writes occur only on successful enrollment/replacement, explicit clear, first-run setup completion, or a documented schema migration. Boot, reconnect, reports, ordinary failures, LED updates, and last-seen activity perform no application writes. A replacement commits and verifies the new role record before deleting the old bond.
+Application flash writes occur only on successful enrollment, explicit clear, or a future documented schema migration. Boot, reconnect, reports, ordinary failures, LED updates, and last-seen activity cause no application writes. Release 1 replaces a role only after its maintenance image removes the old authorization and matching bond.
 
 ## Pairing/status indication
 
-The onboard Pico W LED communicates aggregate state; exact timing will be fixed in the user guide and tested:
+The onboard Pico W LED communicates aggregate state:
 
 - solid: both roles connected;
-- one short pulse group: keyboard connected, mouse absent;
-- two short pulses: mouse connected, keyboard absent;
-- slow even blink: neither connected in normal reconnect mode;
-- fast blink: enrollment/discovery in progress;
-- three slow pulses: candidate rejected or maintenance error.
+- one 100 ms pulse every two seconds: keyboard connected, mouse absent;
+- two 100 ms pulses every two seconds: mouse connected, keyboard absent;
+- 500 ms on/off: neither connected;
+- 200 ms on/off: a connection, security, or discovery operation is active.
+
+Maintenance firmware uses solid for reported success and a 150 ms blink for reported failure.
 
 No LED pattern is claimed as verified until tested on a Pico W, whose LED is controlled through CYW43439.
 
@@ -143,4 +144,3 @@ The resulting UF2 may be labelled only `PRE_HARDWARE_TEST` until Pico W and PC t
 - `docs/research/02_usb_architecture.md`
 - `docs/research/03_safety_xbox.md`
 - `docs/research/04_hid_pairing_persistence.md`
-

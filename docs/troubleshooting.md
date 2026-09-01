@@ -1,46 +1,101 @@
 # Troubleshooting
 
-## LED signal interpreting
+This firmware is still **PRE-HARDWARE TEST**. Start every investigation on a
+normal PC. Do not move to an Xbox until the staged PC tests pass.
 
-| LED       | Meaning                                                 |
-|-----------|---------------------------------------------------------|
-| Off       | Core 1 has not finished starting the wireless chip.     |
-| Blinking  | Scanning for a device, or reconnecting to a bonded one. |
-| Steady on | Discovery finished; input is being forwarded.           |
+## Nothing happens after copying the UF2
 
-## Reading the logs
+The `RPI-RP2` drive should disappear automatically after a valid UF2 is copied.
+Wait ten seconds, then reconnect the Pico W normally without holding BOOTSEL.
 
-Logs go to UART0 — GPIO 0 (TX, physical pin 1) and GPIO 1 (RX, pin 2) — so you
-need a USB-to-serial adapter, with its ground tied to a ground pin on the board.
-The firmware only prints, so wiring the adapter's RX to GPIO 0 and the grounds
-together is enough.
-(Leaving the adapter's TX disconnected also avoids driving 5 V into a
-3.3 V input.)
+If `RPI-RP2` stays mounted, eject it, disconnect the cable, and repeat the
+procedure in [the flashing guide](beginner-flashing.md). Confirm that the file
+name is exactly:
 
-Both cores share the console, so each line is tagged with the subsystem that
-wrote it: `[SYS]`, `[BLE]` or `[USB]`. Some receivers cannot keep up with the
-default 115200 — a bit-banged software UART on an AVR, for instance, is
-unreliable much above 38400.
-So, build with a matching [`UART_BAUD_RATE`, say 9600](build.md).
+```text
+pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2
+```
 
-## A keyboard pairs, then nothing happens
+Do not use one of the `MAINTENANCE` images as normal firmware.
 
-Pairing succeeds, `[BLE] Search for HID service.` is printed, and nothing
-follows. The keyboard keeps flashing its pairing light, eventually sleeps, and
-the link drops about 30 seconds later.
+## The PC does not detect a keyboard and mouse
 
-BTstack normally discovers the Client Characteristic Configuration (CCC)
-descriptor with a shortcut that assumes the CCC is the last descriptor of a
-characteristic. Keyboards that place a Report Reference after it — which is
-common — leave the state machine unable to send the write that enables
-notifications, so discovery never finishes and the security manager times out.
+Try the same known-good USB **data** cable and PC port used to copy the UF2.
+Charge-only cables can power the board without carrying USB data. Open Windows
+Device Manager and look for one composite USB device with a keyboard interface
+and a mouse interface. Normal firmware must not mount `RPI-RP2`; that drive is
+expected only while BOOTSEL ROM mode is active.
 
-The firmware defines `ENABLE_GATT_LEGACY_CCC_DISCOVERY` in `btstack_config.h` to
-select the older two-step discovery instead. It costs one extra round trip and
-copes with descriptors in any order.
+If the LED never changes after 15 seconds, stop and use
+[the recovery guide](recovery.md). Do not connect a second power supply.
 
-## The keyboard re-appears on the PC when the BLE link comes up
+## Understanding the LED
 
-Expected. Once the bridge has the HID report descriptor of the BLE device, it
-disconnects and reconnects itself so the PC re-reads that descriptor and sees
-the real keyboard rather than the placeholder one.
+These patterns are implemented but are not yet physically verified:
+
+| Pattern | Meaning |
+|---|---|
+| Solid | Keyboard and mouse are both ready |
+| One 100 ms pulse every 2 seconds | Keyboard ready; mouse absent |
+| Two 100 ms pulses every 2 seconds | Mouse ready; keyboard absent |
+| 500 ms on / 500 ms off | Neither role is ready |
+| 200 ms on / 200 ms off | Connection, security, or discovery is in progress |
+
+For a maintenance image, solid indicates that its clear operation completed.
+A 150 ms rapid blink indicates failure. Reflash the normal image after a
+maintenance image completes.
+
+## A device is not discovered
+
+- Confirm that it is a **BLE HID** device, not a proprietary 2.4 GHz-only
+  receiver or Bluetooth Classic-only peripheral.
+- Disconnect it from other hosts and put it into its documented BLE pairing
+  mode.
+- During enrollment, keep unrelated nearby HID devices out of pairing mode.
+- The enrollment window lasts 120 seconds after USB configures. Power-cycle the
+  Pico W to reopen it for any role that still has no saved authorization.
+- Passkey-entry, Numeric Comparison, legacy pairing, and OOB-only devices are
+  intentionally unsupported.
+
+The firmware rejects unsupported, mixed keyboard/mouse, malformed, and
+oversized HID Report Maps. Rejection is safer than forwarding unknown bytes.
+
+## One device works and the other does not
+
+The two roles are independent. Wake the absent peripheral, then wait several
+seconds for its advertisements and the one-second reconnect backoff. Do not
+clear the working role just to troubleshoot the other.
+
+If the missing role has incorrect or stale authorization, flash only its
+maintenance image, wait for the maintenance success indication, then reflash
+the normal firmware:
+
+- `pico_w_clear_keyboard_pairing_MAINTENANCE.uf2`, or
+- `pico_w_clear_mouse_pairing_MAINTENANCE.uf2`.
+
+Use `pico_w_clear_all_pairings_MAINTENANCE.uf2` only when deliberately starting
+over with both devices, or whenever a role-clear operation was interrupted or
+reported failure. In that partial-clear case, clear-all is required because the
+role tag may be gone while its BLE database entry remains.
+
+## Input appears stuck
+
+Disconnect the Pico W from the host. A lost release report is a serious defect,
+not a condition to work around. Record which peripheral, keys/buttons, and LED
+pattern were present, then report the result before continuing. Do not proceed
+to Xbox testing.
+
+## UART logs
+
+Logs are optional diagnostics, not required for a beginner's normal setup.
+They use UART0 TX on GPIO 0 at 115200 baud by default and require extra hardware;
+do not connect GPIO to an Xbox. If you already understand 3.3 V UART wiring,
+`UART_BAUD_RATE` can be changed at build time as described in [build.md](build.md).
+Never connect a 5 V UART signal to a Pico W GPIO.
+
+## Recovery
+
+Application mistakes do not normally overwrite the RP2040 ROM bootloader.
+Use the PC-based BOOTSEL process in [recovery.md](recovery.md). Avoid flash-nuke
+unless ordinary BOOTSEL reflashing works but a documented persistent-state
+problem remains and the recovery guide specifically calls for it.
