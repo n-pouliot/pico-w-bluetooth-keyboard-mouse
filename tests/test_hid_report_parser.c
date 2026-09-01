@@ -316,7 +316,7 @@ static int test_packet_framing_errors(void)
           HID_NORMALIZE_BAD_PREFIX);
     CHECK(hid_report_normalize(&plan, &runtime, 9u, unknown,
                                ARRAY_LENGTH(unknown), &output) ==
-          HID_NORMALIZE_IGNORED);
+          HID_NORMALIZE_UNKNOWN_REPORT_ID);
     CHECK(hid_report_normalize(&plan, &runtime, 0u, correct,
                                ARRAY_LENGTH(correct) - 1u, &output) ==
           HID_NORMALIZE_BAD_LENGTH);
@@ -493,6 +493,63 @@ static int test_id_zero_roles_and_absolute_mouse(void)
     return 0;
 }
 
+static void exercise_compiled_plan(const hid_report_plan_t *plan)
+{
+    hid_report_runtime_t runtime;
+    hid_normalized_report_t output;
+    uint8_t report[HID_REPORT_INPUT_MAX_SIZE + 1u] = {0};
+    uint8_t index;
+
+    hid_report_runtime_init(&runtime, plan);
+    for (index = 0u; index < plan->report_count; ++index) {
+        const size_t length = (size_t)plan->reports[index].payload_length + 1u;
+        report[0] = plan->reports[index].report_id;
+        (void)hid_report_normalize(plan, &runtime,
+                                   plan->reports[index].report_id,
+                                   report, length, &output);
+    }
+}
+
+static int test_descriptor_mutation_smoke(void)
+{
+    uint8_t mutated[256];
+    hid_report_plan_t plan;
+    uint32_t random = UINT32_C(0x6d2b79f5);
+    size_t byte;
+    uint8_t bit;
+
+    CHECK(ARRAY_LENGTH(boot_keyboard_map) <= ARRAY_LENGTH(mutated));
+    for (byte = 0u; byte < ARRAY_LENGTH(boot_keyboard_map); ++byte) {
+        for (bit = 0u; bit < 8u; ++bit) {
+            memcpy(mutated, boot_keyboard_map,
+                   ARRAY_LENGTH(boot_keyboard_map));
+            mutated[byte] ^= (uint8_t)(1u << bit);
+            if (hid_report_compile(mutated, ARRAY_LENGTH(boot_keyboard_map),
+                                   &plan) == HID_COMPILE_OK) {
+                exercise_compiled_plan(&plan);
+            }
+        }
+    }
+
+    for (byte = 0u; byte < 5000u; ++byte) {
+        size_t index;
+        random ^= random << 13;
+        random ^= random >> 17;
+        random ^= random << 5;
+        const size_t length = (size_t)(random & UINT32_C(0xff));
+        for (index = 0u; index < length; ++index) {
+            random ^= random << 13;
+            random ^= random >> 17;
+            random ^= random << 5;
+            mutated[index] = (uint8_t)random;
+        }
+        if (hid_report_compile(mutated, length, &plan) == HID_COMPILE_OK) {
+            exercise_compiled_plan(&plan);
+        }
+    }
+    return 0;
+}
+
 int test_hid_report_parser(void)
 {
     CHECK(test_boot_keyboard_no_id() == 0);
@@ -505,5 +562,6 @@ int test_hid_report_parser(void)
     CHECK(test_malformed_and_truncated_maps() == 0);
     CHECK(test_limits() == 0);
     CHECK(test_id_zero_roles_and_absolute_mouse() == 0);
+    CHECK(test_descriptor_mutation_smoke() == 0);
     return 0;
 }

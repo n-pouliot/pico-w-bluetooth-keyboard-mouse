@@ -47,6 +47,7 @@ add_executable(xbox_pico
     usb_descriptors.c
     bridge_mailbox.c
     ble_hid_bridge.c
+    ble_bridge_policy.c
     hid_report_parser.c
     pairing_store.c
     bt_example_common.c
@@ -60,10 +61,11 @@ set_source_files_properties(
     usb_descriptors.c
     bridge_mailbox.c
     ble_hid_bridge.c
+    ble_bridge_policy.c
     hid_report_parser.c
     pairing_store.c
     bt_example_common.c
-    PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra;-Wpedantic;-Werror"
+    PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra;-Wpedantic;-Werror;-fstack-usage"
     )
 target_link_libraries(xbox_pico
     pico_stdlib
@@ -83,6 +85,7 @@ target_include_directories(xbox_pico PRIVATE
     )
 target_compile_definitions(xbox_pico PRIVATE
     CYW43_LWIP=0
+    PICO_CORE1_STACK_SIZE=0
     PICO_DEFAULT_UART_BAUD_RATE=${UART_BAUD_RATE}
     )    
     

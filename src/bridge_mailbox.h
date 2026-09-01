@@ -39,6 +39,12 @@ typedef struct {
     bool release;
 } bridge_mouse_tx_t;
 
+typedef enum {
+    BRIDGE_MOUSE_PUBLISH_STALE = 0,
+    BRIDGE_MOUSE_PUBLISH_ACCEPTED,
+    BRIDGE_MOUSE_PUBLISH_OVERFLOW,
+} bridge_mouse_publish_result_t;
+
 void bridge_mailbox_init(void);
 
 // Starts a new accepted role generation. A zero-state USB barrier is scheduled
@@ -50,8 +56,9 @@ uint32_t bridge_role_activate(bridge_role_t role);
 void bridge_role_release(bridge_role_t role, uint32_t generation);
 
 bool bridge_keyboard_publish(uint32_t generation, const bridge_keyboard_report_t *report);
-bool bridge_mouse_publish(uint32_t generation, uint8_t buttons,
-                          int32_t x, int32_t y, int32_t wheel, int32_t pan);
+bridge_mouse_publish_result_t bridge_mouse_publish(
+    uint32_t generation, uint8_t buttons,
+    int32_t x, int32_t y, int32_t wheel, int32_t pan);
 
 bool bridge_keyboard_peek(bridge_keyboard_report_t *report, bridge_keyboard_tx_t *tx);
 void bridge_keyboard_complete(const bridge_keyboard_tx_t *tx);
@@ -61,10 +68,12 @@ bool bridge_mouse_peek(bool boot_protocol, bridge_mouse_report_t *report,
 void bridge_mouse_complete(const bridge_mouse_tx_t *tx);
 
 void bridge_keyboard_snapshot(bridge_keyboard_report_t *report);
-void bridge_mouse_snapshot(bridge_mouse_report_t *report);
+void bridge_mouse_snapshot(bool boot_protocol, bridge_mouse_report_t *report);
 
 // Used after USB mount or a per-interface protocol change. The host receives a
 // release first, then the current canonical state; BLE state is not discarded.
+void bridge_keyboard_usb_resync(void);
+void bridge_mouse_usb_resync(void);
 void bridge_mailbox_usb_resync(void);
 
 #endif

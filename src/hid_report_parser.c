@@ -915,7 +915,12 @@ static hid_compile_result_t compile_descriptor(const uint8_t *report_map,
                                                size_t report_map_length,
                                                hid_report_plan_t *plan)
 {
-    parser_t parser;
+    /*
+     * Descriptor compilation is serialized by the Core-1 connection manager.
+     * Keep the 1+ KiB bounded scratch area in BSS rather than on Core-1's
+     * callback stack. This function is intentionally non-reentrant.
+     */
+    static parser_t parser;
     size_t offset = 0u;
 
     memset(&parser, 0, sizeof(parser));
@@ -1309,7 +1314,7 @@ hid_normalize_result_t hid_report_normalize(
         }
     }
     if (report == NULL) {
-        return HID_NORMALIZE_IGNORED;
+        return HID_NORMALIZE_UNKNOWN_REPORT_ID;
     }
     if (btstack_report_length != (size_t)report->payload_length + 1u) {
         return HID_NORMALIZE_BAD_LENGTH;

@@ -35,14 +35,15 @@ static critical_section_t mailbox_lock;
 static keyboard_mailbox_t keyboard_mailbox;
 static mouse_mailbox_t mouse_mailbox;
 
-static int32_t saturating_add_i32(int32_t lhs, int32_t rhs) {
+static bool checked_add_i32(int32_t lhs, int32_t rhs, int32_t *out) {
     if ((rhs > 0) && (lhs > INT32_MAX - rhs)) {
-        return INT32_MAX;
+        return false;
     }
     if ((rhs < 0) && (lhs < INT32_MIN - rhs)) {
-        return INT32_MIN;
+        return false;
     }
-    return lhs + rhs;
+    *out = lhs + rhs;
+    return true;
 }
 
 static int8_t next_usb_delta(int32_t value) {
@@ -152,26 +153,53 @@ bool bridge_keyboard_publish(uint32_t generation, const bridge_keyboard_report_t
     return accepted;
 }
 
-bool bridge_mouse_publish(uint32_t generation, uint8_t buttons,
-                          int32_t x, int32_t y, int32_t wheel, int32_t pan) {
-    bool accepted = false;
+bridge_mouse_publish_result_t bridge_mouse_publish(
+    uint32_t generation, uint8_t buttons,
+    int32_t x, int32_t y, int32_t wheel, int32_t pan) {
+    bridge_mouse_publish_result_t result = BRIDGE_MOUSE_PUBLISH_STALE;
     critical_section_enter_blocking(&mailbox_lock);
     if ((generation != 0u) && (mouse_mailbox.generation == generation)) {
-        accepted = true;
+        result = BRIDGE_MOUSE_PUBLISH_ACCEPTED;
         const bool changed = (mouse_mailbox.buttons != buttons) ||
                              (x != 0) || (y != 0) || (wheel != 0) || (pan != 0);
         if (changed) {
-            mouse_mailbox.buttons = buttons;
-            mouse_mailbox.x = saturating_add_i32(mouse_mailbox.x, x);
-            mouse_mailbox.y = saturating_add_i32(mouse_mailbox.y, y);
-            mouse_mailbox.wheel = saturating_add_i32(mouse_mailbox.wheel, wheel);
-            mouse_mailbox.pan = saturating_add_i32(mouse_mailbox.pan, pan);
-            mouse_mailbox.state_dirty = true;
-            mouse_mailbox.sequence++;
+            int32_t next_x;
+            int32_t next_y;
+            int32_t next_wheel;
+            int32_t next_pan;
+            if (!checked_add_i32(mouse_mailbox.x, x, &next_x) ||
+                !checked_add_i32(mouse_mailbox.y, y, &next_y) ||
+                !checked_add_i32(mouse_mailbox.wheel, wheel, &next_wheel) ||
+                !checked_add_i32(mouse_mailbox.pan, pan, &next_pan)) {
+                /*
+                 * Never silently clamp motion. Invalidate this producer,
+                 * discard the ambiguous accumulated state, and force a USB
+                 * release barrier. The BLE owner then disconnects the role.
+                 */
+                mouse_mailbox.generation =
+                    next_generation(mouse_mailbox.generation);
+                mouse_mailbox.x = 0;
+                mouse_mailbox.y = 0;
+                mouse_mailbox.wheel = 0;
+                mouse_mailbox.pan = 0;
+                mouse_mailbox.buttons = 0;
+                mouse_mailbox.state_dirty = false;
+                mouse_mailbox.sequence++;
+                schedule_mouse_release();
+                result = BRIDGE_MOUSE_PUBLISH_OVERFLOW;
+            } else {
+                mouse_mailbox.buttons = buttons;
+                mouse_mailbox.x = next_x;
+                mouse_mailbox.y = next_y;
+                mouse_mailbox.wheel = next_wheel;
+                mouse_mailbox.pan = next_pan;
+                mouse_mailbox.state_dirty = true;
+                mouse_mailbox.sequence++;
+            }
         }
     }
     critical_section_exit(&mailbox_lock);
-    return accepted;
+    return result;
 }
 
 bool bridge_keyboard_peek(bridge_keyboard_report_t *report, bridge_keyboard_tx_t *tx) {
@@ -232,7 +260,9 @@ bool bridge_mouse_peek(bool boot_protocol, bridge_mouse_report_t *report,
         tx->release = true;
         available = true;
     } else if (mouse_mailbox.state_dirty) {
-        report->buttons = mouse_mailbox.buttons;
+        report->buttons = boot_protocol ?
+                              (uint8_t)(mouse_mailbox.buttons & 0x07u) :
+                              mouse_mailbox.buttons;
         report->x = next_usb_delta(mouse_mailbox.x);
         report->y = next_usb_delta(mouse_mailbox.y);
         report->wheel = boot_protocol ? 0 : next_usb_delta(mouse_mailbox.wheel);
@@ -295,7 +325,7 @@ void bridge_keyboard_snapshot(bridge_keyboard_report_t *report) {
     critical_section_exit(&mailbox_lock);
 }
 
-void bridge_mouse_snapshot(bridge_mouse_report_t *report) {
+void bridge_mouse_snapshot(bool boot_protocol, bridge_mouse_report_t *report) {
     if (report == NULL) {
         return;
     }
@@ -303,12 +333,14 @@ void bridge_mouse_snapshot(bridge_mouse_report_t *report) {
     critical_section_enter_blocking(&mailbox_lock);
     memset(report, 0, sizeof(*report));
     if (!mouse_mailbox.release_pending) {
-        report->buttons = mouse_mailbox.buttons;
+        report->buttons = boot_protocol ?
+                              (uint8_t)(mouse_mailbox.buttons & 0x07u) :
+                              mouse_mailbox.buttons;
     }
     critical_section_exit(&mailbox_lock);
 }
 
-void bridge_mailbox_usb_resync(void) {
+void bridge_keyboard_usb_resync(void) {
     critical_section_enter_blocking(&mailbox_lock);
     keyboard_mailbox.sequence++;
     schedule_keyboard_release();
@@ -316,6 +348,11 @@ void bridge_mailbox_usb_resync(void) {
                                           &(bridge_keyboard_report_t){0},
                                           sizeof(keyboard_mailbox.state)) != 0;
 
+    critical_section_exit(&mailbox_lock);
+}
+
+void bridge_mouse_usb_resync(void) {
+    critical_section_enter_blocking(&mailbox_lock);
     mouse_mailbox.sequence++;
     schedule_mouse_release();
     mouse_mailbox.state_dirty = (mouse_mailbox.buttons != 0) ||
@@ -324,4 +361,9 @@ void bridge_mailbox_usb_resync(void) {
                                 (mouse_mailbox.wheel != 0) ||
                                 (mouse_mailbox.pan != 0);
     critical_section_exit(&mailbox_lock);
+}
+
+void bridge_mailbox_usb_resync(void) {
+    bridge_keyboard_usb_resync();
+    bridge_mouse_usb_resync();
 }

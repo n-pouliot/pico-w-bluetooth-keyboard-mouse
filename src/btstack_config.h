@@ -40,6 +40,12 @@
 #define MAX_NR_HCI_CONNECTIONS 2
 #define MAX_NR_HID_HOST_CONNECTIONS 1
 #define MAX_NR_HIDS_CLIENTS 2
+/*
+ * The pinned HIDS client reserves Report Map storage per service incorrectly
+ * when more than one HIDS service is present. Application preflight rejects
+ * that topology; this independent cap also makes its cleanup arithmetic safe.
+ */
+#define MAX_NUM_HID_SERVICES 1
 #define MAX_NR_HFP_CONNECTIONS 1
 #define MAX_NR_L2CAP_CHANNELS  4
 #define MAX_NR_L2CAP_SERVICES  3

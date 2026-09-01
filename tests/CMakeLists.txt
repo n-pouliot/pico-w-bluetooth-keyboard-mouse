@@ -9,9 +9,11 @@ add_executable(gate1_tests
     test_hid_report_parser.c
     test_pairing_store.c
     test_bridge_mailbox.c
+    test_ble_bridge_policy.c
     ../src/hid_report_parser.c
     ../src/pairing_store.c
     ../src/bridge_mailbox.c
+    ../src/ble_bridge_policy.c
 )
 
 target_include_directories(gate1_tests PRIVATE stubs ../src)

@@ -1,5 +1,6 @@
 #include "bridge_mailbox.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -109,21 +110,71 @@ static int test_usb_resync_and_boot_mouse(void) {
 
     bridge_mailbox_init();
     const uint32_t generation = bridge_role_activate(BRIDGE_ROLE_MOUSE);
-    CHECK(bridge_mouse_publish(generation, 4u, 1, 2, 9, -9));
+    CHECK(bridge_mouse_publish(generation, 0x1fu, 1, 2, 9, -9) ==
+          BRIDGE_MOUSE_PUBLISH_ACCEPTED);
     CHECK(bridge_mouse_peek(true, &report, &tx));
     bridge_mouse_complete(&tx);
     CHECK(bridge_mouse_peek(true, &report, &tx));
-    CHECK(report.buttons == 4u && report.x == 1 && report.y == 2);
+    CHECK(report.buttons == 0x07u && report.x == 1 && report.y == 2);
     CHECK(report.wheel == 0 && report.pan == 0);
     bridge_mouse_complete(&tx);
     CHECK(!bridge_mouse_peek(true, &report, &tx));
 
-    bridge_mailbox_usb_resync();
+    bridge_mouse_usb_resync();
     CHECK(bridge_mouse_peek(false, &report, &tx));
     CHECK(tx.release && mouse_is_zero(&report));
     bridge_mouse_complete(&tx);
     CHECK(bridge_mouse_peek(false, &report, &tx));
-    CHECK(report.buttons == 4u);
+    CHECK(report.buttons == 0x1fu);
+    return 0;
+}
+
+static int test_per_interface_resync(void) {
+    bridge_keyboard_report_t keyboard = {.keycode = {4u}};
+    bridge_keyboard_report_t observed_keyboard;
+    bridge_keyboard_tx_t keyboard_tx;
+    bridge_mouse_report_t observed_mouse;
+    bridge_mouse_tx_t mouse_tx;
+
+    bridge_mailbox_init();
+    const uint32_t keyboard_generation =
+        bridge_role_activate(BRIDGE_ROLE_KEYBOARD);
+    const uint32_t mouse_generation = bridge_role_activate(BRIDGE_ROLE_MOUSE);
+    CHECK(bridge_keyboard_publish(keyboard_generation, &keyboard));
+    CHECK(bridge_mouse_publish(mouse_generation, 1u, 0, 0, 0, 0) ==
+          BRIDGE_MOUSE_PUBLISH_ACCEPTED);
+    CHECK(bridge_keyboard_peek(&observed_keyboard, &keyboard_tx));
+    bridge_keyboard_complete(&keyboard_tx);
+    CHECK(bridge_mouse_peek(false, &observed_mouse, &mouse_tx));
+    bridge_mouse_complete(&mouse_tx);
+    CHECK(bridge_keyboard_peek(&observed_keyboard, &keyboard_tx));
+    bridge_keyboard_complete(&keyboard_tx);
+    CHECK(bridge_mouse_peek(false, &observed_mouse, &mouse_tx));
+    bridge_mouse_complete(&mouse_tx);
+
+    bridge_keyboard_usb_resync();
+    CHECK(bridge_keyboard_peek(&observed_keyboard, &keyboard_tx));
+    CHECK(keyboard_tx.release);
+    CHECK(!bridge_mouse_peek(false, &observed_mouse, &mouse_tx));
+    return 0;
+}
+
+static int test_mouse_overflow_is_fail_safe(void) {
+    bridge_mouse_report_t report;
+    bridge_mouse_tx_t tx;
+
+    bridge_mailbox_init();
+    const uint32_t generation = bridge_role_activate(BRIDGE_ROLE_MOUSE);
+    CHECK(bridge_mouse_peek(false, &report, &tx));
+    bridge_mouse_complete(&tx);
+    CHECK(bridge_mouse_publish(generation, 1u, INT32_MAX, 0, 0, 0) ==
+          BRIDGE_MOUSE_PUBLISH_ACCEPTED);
+    CHECK(bridge_mouse_publish(generation, 1u, 1, 0, 0, 0) ==
+          BRIDGE_MOUSE_PUBLISH_OVERFLOW);
+    CHECK(bridge_mouse_peek(false, &report, &tx));
+    CHECK(tx.release && mouse_is_zero(&report));
+    CHECK(bridge_mouse_publish(generation, 1u, 1, 0, 0, 0) ==
+          BRIDGE_MOUSE_PUBLISH_STALE);
     return 0;
 }
 
@@ -132,5 +183,7 @@ int test_bridge_mailbox(void) {
     CHECK(test_keyboard_release_barrier_and_stale_input() == 0);
     CHECK(test_mouse_lossless_chunking() == 0);
     CHECK(test_usb_resync_and_boot_mouse() == 0);
+    CHECK(test_per_interface_resync() == 0);
+    CHECK(test_mouse_overflow_is_fail_safe() == 0);
     return 0;
 }

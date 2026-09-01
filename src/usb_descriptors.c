@@ -18,6 +18,7 @@
 #pragma GCC diagnostic pop
 #endif
 
+/* Experimental VID/PID for private bench testing only, not distribution. */
 #define USB_VID 0xCAFEu
 #define USB_PID 0x4008u
 #define USB_BCD 0x0200u

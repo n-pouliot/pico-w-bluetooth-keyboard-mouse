@@ -17,6 +17,7 @@
 #include "ble/le_device_db.h"
 
 #include "bridge.h"
+#include "ble_bridge_policy.h"
 #include "bt_example_common.h"
 #include "bridge_log.h"
 #include "bridge_mailbox.h"
@@ -30,10 +31,12 @@
 #define CONNECT_TIMEOUT_MS 10000u
 #define SECURITY_TIMEOUT_MS 30000u
 #define DISCOVERY_TIMEOUT_MS 45000u
+#define ADDRESS_RESOLUTION_TIMEOUT_MS 3000u
+#define DISCONNECT_TIMEOUT_MS 5000u
 #define RETRY_BACKOFF_MS 1000u
 #define MANAGER_RETRY_MS 250u
 #define LED_TICK_MS 100u
-#define MALFORMED_REPORT_LIMIT 8u
+#define TRANSPORT_TICK_MS 5u
 
 #define CONN_INTERVAL_MIN_UNITS 10u
 #define CONN_INTERVAL_MAX_UNITS 12u
@@ -48,7 +51,9 @@
 typedef enum {
     DEVICE_IDLE = 0,
     DEVICE_CONNECTING,
+    DEVICE_CONNECT_CANCELING,
     DEVICE_SECURING,
+    DEVICE_PREFLIGHTING_HIDS,
     DEVICE_DISCOVERING,
     DEVICE_READY,
     DEVICE_DISCONNECTING,
@@ -60,16 +65,28 @@ typedef struct {
     hid_report_role_t role;
     bool enrollment;
     bool identity_valid;
+    bool new_bond_uncommitted;
+    bool enrollment_db_snapshot_valid;
+    ble_appearance_hint_t appearance_hint;
     bd_addr_t target_address;
     bd_addr_type_t target_address_type;
     bd_addr_t identity_address;
     bd_addr_type_t identity_address_type;
     int device_db_index;
+    int new_bond_db_index;
+    bd_addr_t new_bond_identity;
+    bd_addr_type_t new_bond_identity_type;
+    uint32_t device_db_occupied_before;
     hci_con_handle_t connection_handle;
     uint16_t hids_cid;
+    uint16_t attempt_token;
+    uint8_t hids_service_count;
+    uint8_t disconnect_retries;
     uint32_t generation;
     uint32_t retry_after_ms;
-    uint8_t malformed_reports;
+    device_state_t timer_state;
+    uint16_t timer_attempt_token;
+    btstack_timer_source_t operation_timer;
     hid_report_plan_t report_plan;
     hid_report_runtime_t report_runtime;
 } device_context_t;
@@ -86,6 +103,8 @@ typedef struct {
     bool advertisement_has_hid;
     bd_addr_t address;
     bd_addr_type_t address_type;
+    ble_appearance_hint_t appearance_hint;
+    uint16_t token;
 } resolution_request_t;
 
 static device_context_t devices[DEVICE_CONTEXT_COUNT];
@@ -96,17 +115,24 @@ static const btstack_tlv_t *tlv_impl;
 static void *tlv_context;
 static btstack_packet_callback_registration_t hci_event_registration;
 static btstack_packet_callback_registration_t sm_event_registration;
-static btstack_timer_source_t operation_timer;
 static btstack_timer_source_t manager_timer;
 static btstack_timer_source_t led_timer;
+static btstack_timer_source_t transport_timer;
+static btstack_timer_source_t resolution_timer;
 static resolution_request_t resolution_request;
 
 static int8_t active_operation = -1;
+static uint16_t next_attempt_token;
+static uint32_t resolution_retry_after_ms;
 static bool scan_active;
 static bool manager_timer_active;
 static bool enrollment_open;
+static bool enrollment_window_started;
 static uint32_t enrollment_deadline_ms;
 static uint32_t led_ticks;
+static bool radio_working;
+static bool radio_transition_pending;
+static bool usb_transport_requested;
 
 static void packet_handler(uint8_t packet_type, uint16_t channel,
                            uint8_t *packet, uint16_t size);
@@ -114,10 +140,17 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel,
                               uint8_t *packet, uint16_t size);
 static void hids_packet_handler(uint8_t packet_type, uint16_t channel,
                                 uint8_t *packet, uint16_t size);
+static void hids_preflight_packet_handler(uint8_t packet_type,
+                                          uint16_t channel,
+                                          uint8_t *packet, uint16_t size);
 static void drive_connection_manager(void);
 static void operation_timeout(btstack_timer_source_t *timer);
+static void resolution_timeout(btstack_timer_source_t *timer);
 static void manager_timeout(btstack_timer_source_t *timer);
 static void led_timeout(btstack_timer_source_t *timer);
+static void transport_timeout(btstack_timer_source_t *timer);
+static void discard_uncommitted_bond(device_context_t *context);
+static void quiesce_radio(void);
 
 static uint32_t role_tag(hid_report_role_t role) {
     return role == HID_REPORT_ROLE_KEYBOARD ? TLV_TAG_XHKB : TLV_TAG_XHMS;
@@ -163,34 +196,14 @@ static bool address_equal(bd_addr_type_t lhs_type, const bd_addr_t lhs,
            (memcmp(lhs, rhs, sizeof(bd_addr_t)) == 0);
 }
 
-static bool advertisement_has_hid(const uint8_t *packet) {
+static bool advertisement_policy(const uint8_t *packet, uint16_t packet_size,
+                                 ble_advertisement_policy_t *policy) {
     const uint8_t *data = gap_event_advertising_report_get_data(packet);
     const uint8_t length = gap_event_advertising_report_get_data_length(packet);
-    if (ad_data_contains_uuid16(length, data,
-                                ORG_BLUETOOTH_SERVICE_HUMAN_INTERFACE_DEVICE)) {
-        return true;
+    if (packet_size < 12u || (uint16_t)length != packet_size - 12u) {
+        return false;
     }
-
-    uint16_t offset = 0;
-    while (offset < length) {
-        const uint8_t item_length = data[offset];
-        if (item_length == 0u) {
-            break;
-        }
-        if (((uint16_t)offset + 1u + item_length) > length) {
-            break;
-        }
-        if ((item_length >= 3u) && (data[offset + 1u] == 0x19u)) {
-            const uint16_t appearance =
-                (uint16_t)data[offset + 2u] |
-                ((uint16_t)data[offset + 3u] << 8);
-            if ((appearance >= 0x03c0u) && (appearance <= 0x03cfu)) {
-                return true;
-            }
-        }
-        offset = (uint16_t)(offset + 1u + item_length);
-    }
-    return false;
+    return ble_bridge_parse_advertisement(data, length, policy);
 }
 
 static device_context_t *context_by_handle(hci_con_handle_t handle) {
@@ -233,6 +246,10 @@ static device_context_t *context_for_role(hid_report_role_t role) {
 }
 
 static device_context_t *candidate_context(uint32_t now) {
+    if (enrollment_open && deadline_reached(now, enrollment_deadline_ms)) {
+        enrollment_open = false;
+        BLE_LOG("First-run enrollment window closed\n");
+    }
     if (!enrollment_open) {
         return NULL;
     }
@@ -246,15 +263,47 @@ static device_context_t *candidate_context(uint32_t now) {
     return NULL;
 }
 
-static void cancel_operation_timer(void) {
-    btstack_run_loop_remove_timer(&operation_timer);
+static bool enrollment_is_current(device_context_t *context) {
+    const uint32_t now = btstack_run_loop_get_time_ms();
+    if (context == NULL || !context->enrollment || !enrollment_open ||
+        deadline_reached(now, enrollment_deadline_ms)) {
+        enrollment_open = enrollment_open &&
+                          !deadline_reached(now, enrollment_deadline_ms);
+        if (context != NULL) {
+            context->enrollment = false;
+        }
+        return false;
+    }
+    return true;
 }
 
-static void arm_operation_timer(uint32_t timeout_ms) {
-    cancel_operation_timer();
-    btstack_run_loop_set_timer_handler(&operation_timer, operation_timeout);
-    btstack_run_loop_set_timer(&operation_timer, timeout_ms);
-    btstack_run_loop_add_timer(&operation_timer);
+static uint16_t allocate_attempt_token(void) {
+    next_attempt_token++;
+    if (next_attempt_token == 0u) {
+        next_attempt_token = 1u;
+    }
+    return next_attempt_token;
+}
+
+static void cancel_operation_timer(device_context_t *context) {
+    if (context == NULL) {
+        return;
+    }
+    (void)btstack_run_loop_remove_timer(&context->operation_timer);
+    context->timer_state = DEVICE_IDLE;
+    context->timer_attempt_token = 0u;
+}
+
+static void arm_operation_timer(device_context_t *context,
+                                uint32_t timeout_ms) {
+    cancel_operation_timer(context);
+    context->timer_state = context->state;
+    context->timer_attempt_token = context->attempt_token;
+    btstack_run_loop_set_timer_handler(&context->operation_timer,
+                                       operation_timeout);
+    btstack_run_loop_set_timer_context(&context->operation_timer, context);
+    btstack_run_loop_set_timer(&context->operation_timer, timeout_ms);
+    btstack_run_loop_add_timer(&context->operation_timer);
 }
 
 static void schedule_manager(uint32_t delay_ms) {
@@ -274,27 +323,27 @@ static void release_device(device_context_t *context) {
         context->generation = 0u;
     }
     memset(&context->report_runtime, 0, sizeof(context->report_runtime));
-    context->malformed_reports = 0u;
 }
 
 static void finish_disconnected(device_context_t *context) {
     const int index = context_index(context);
-    const bool owned_operation_timer =
-        (context->state == DEVICE_DISCONNECTING) ||
-        ((index >= 0) && (active_operation == index));
+    cancel_operation_timer(context);
     release_device(context);
+    discard_uncommitted_bond(context);
     context->connection_handle = HCI_CON_HANDLE_INVALID;
     context->hids_cid = 0u;
     context->enrollment = false;
     context->identity_valid = false;
     context->device_db_index = -1;
+    context->new_bond_db_index = -1;
+    context->enrollment_db_snapshot_valid = false;
+    context->appearance_hint = BLE_APPEARANCE_HINT_NONE;
+    context->hids_service_count = 0u;
+    context->disconnect_retries = 0u;
     context->state = DEVICE_IDLE;
     context->retry_after_ms = btstack_run_loop_get_time_ms() + RETRY_BACKOFF_MS;
     if ((index >= 0) && (active_operation == index)) {
         active_operation = -1;
-    }
-    if (owned_operation_timer) {
-        cancel_operation_timer();
     }
     schedule_manager(RETRY_BACKOFF_MS);
 }
@@ -305,14 +354,16 @@ static void disconnect_device(device_context_t *context, const char *reason) {
     }
     BLE_LOG("Rejecting %s: %s\n", role_name(context->role), reason);
     release_device(context);
+    discard_uncommitted_bond(context);
     context->state = DEVICE_DISCONNECTING;
-    cancel_operation_timer();
+    context->disconnect_retries = 0u;
+    cancel_operation_timer(context);
     if (context->connection_handle == HCI_CON_HANDLE_INVALID) {
         finish_disconnected(context);
         return;
     }
     (void)gap_disconnect(context->connection_handle);
-    arm_operation_timer(CONNECT_TIMEOUT_MS);
+    arm_operation_timer(context, DISCONNECT_TIMEOUT_MS);
 }
 
 static int find_device_db_identity(bd_addr_type_t type,
@@ -329,6 +380,78 @@ static int find_device_db_identity(bd_addr_type_t type,
         }
     }
     return -1;
+}
+
+static uint32_t device_db_occupied_mask(void) {
+    const int maximum = le_device_db_max_count();
+    uint32_t mask = 0u;
+    for (int index = 0; index < maximum && index < 32; ++index) {
+        int stored_type = BD_ADDR_TYPE_UNKNOWN;
+        bd_addr_t stored_address;
+        le_device_db_info(index, &stored_type, stored_address, NULL);
+        if (stored_type != BD_ADDR_TYPE_UNKNOWN) {
+            mask |= UINT32_C(1) << (unsigned int)index;
+        }
+    }
+    return mask;
+}
+
+static bool device_db_has_free_slot(uint32_t occupied_mask) {
+    const int maximum = le_device_db_max_count();
+    if (maximum <= 0 || maximum > 32) {
+        return false;
+    }
+    const uint32_t all_slots = maximum == 32 ? UINT32_MAX :
+        (UINT32_C(1) << (unsigned int)maximum) - UINT32_C(1);
+    return (occupied_mask & all_slots) != all_slots;
+}
+
+static void discard_uncommitted_bond(device_context_t *context) {
+    if (context == NULL || !context->enrollment_db_snapshot_valid) {
+        return;
+    }
+
+    const int maximum = le_device_db_max_count();
+    for (int index = 0; index < maximum && index < 32; ++index) {
+        if ((context->device_db_occupied_before &
+             (UINT32_C(1) << (unsigned int)index)) != 0u) {
+            continue;
+        }
+
+        int stored_type = BD_ADDR_TYPE_UNKNOWN;
+        bd_addr_t stored_address;
+        le_device_db_info(index, &stored_type, stored_address, NULL);
+        if (stored_type == BD_ADDR_TYPE_UNKNOWN) {
+            continue;
+        }
+
+        bool authorized_role = false;
+        for (unsigned int role = 0; role < DEVICE_CONTEXT_COUNT; ++role) {
+            if (saved_roles[role].usable &&
+                address_equal(
+                    (bd_addr_type_t)saved_roles[role].record.address_type,
+                    saved_roles[role].record.identity_address,
+                    (bd_addr_type_t)stored_type, stored_address)) {
+                authorized_role = true;
+                break;
+            }
+        }
+        if (authorized_role) {
+            continue;
+        }
+
+        BLE_LOG("Removing newly-created rejected candidate bond at DB index %d\n",
+                index);
+        le_device_db_remove(index);
+        stored_type = BD_ADDR_TYPE_UNKNOWN;
+        le_device_db_info(index, &stored_type, stored_address, NULL);
+        if (stored_type != BD_ADDR_TYPE_UNKNOWN) {
+            BLE_LOG("Candidate bond removal verification failed at DB index %d\n",
+                    index);
+        }
+    }
+    context->new_bond_uncommitted = false;
+    context->new_bond_db_index = -1;
 }
 
 static bool device_db_security_ok(int index) {
@@ -353,10 +476,14 @@ static bool context_security_ok(device_context_t *context) {
 }
 
 static void initialize_device_contexts(void) {
+    for (unsigned int i = 0; i < DEVICE_CONTEXT_COUNT; ++i) {
+        cancel_operation_timer(&devices[i]);
+    }
     memset(devices, 0, sizeof(devices));
     for (unsigned int i = 0; i < DEVICE_CONTEXT_COUNT; ++i) {
         devices[i].connection_handle = HCI_CON_HANDLE_INVALID;
         devices[i].device_db_index = -1;
+        devices[i].new_bond_db_index = -1;
     }
 }
 
@@ -440,6 +567,7 @@ static bool store_enrolled_role(device_context_t *context,
                               &decoded) != PAIRING_STORE_OK) ||
         (memcmp(decoded.identity_address, record.identity_address,
                 sizeof(record.identity_address)) != 0)) {
+        tlv_impl->delete_tag(tlv_context, role_tag(role));
         return false;
     }
 
@@ -447,6 +575,9 @@ static bool store_enrolled_role(device_context_t *context,
     saved_roles[index].usable = true;
     saved_roles[index].record = record;
     saved_roles[index].device_db_index = context->device_db_index;
+    context->new_bond_uncommitted = false;
+    context->new_bond_db_index = -1;
+    context->enrollment_db_snapshot_valid = false;
     BLE_LOG("Persisted enrolled %s identity %s\n", role_name(role),
             bd_addr_to_str(context->identity_address));
     return true;
@@ -475,9 +606,15 @@ static bool context_can_connect(const device_context_t *context, uint32_t now) {
            deadline_reached(now, context->retry_after_ms);
 }
 
+static void cancel_resolution_request(void) {
+    (void)btstack_run_loop_remove_timer(&resolution_timer);
+    resolution_request.pending = false;
+}
+
 static void start_connection(device_context_t *context,
                              bd_addr_type_t address_type,
-                             const bd_addr_t address, bool enrollment) {
+                             const bd_addr_t address, bool enrollment,
+                             ble_appearance_hint_t appearance_hint) {
     const int index = context_index(context);
     if ((index < 0) || (active_operation >= 0)) {
         return;
@@ -487,13 +624,18 @@ static void start_connection(device_context_t *context,
         gap_stop_scan();
         scan_active = false;
     }
-    resolution_request.pending = false;
+    cancel_resolution_request();
     memcpy(context->target_address, address, sizeof(bd_addr_t));
     context->target_address_type = (bd_addr_type_t)(address_type & 1u);
     context->enrollment = enrollment;
+    context->appearance_hint = appearance_hint;
     context->state = DEVICE_CONNECTING;
     context->connection_handle = HCI_CON_HANDLE_INVALID;
     context->hids_cid = 0u;
+    context->attempt_token = allocate_attempt_token();
+    context->new_bond_uncommitted = false;
+    context->new_bond_db_index = -1;
+    context->enrollment_db_snapshot_valid = false;
     active_operation = (int8_t)index;
 
     BLE_LOG("Connecting %s to %s\n", role_name(context->role),
@@ -501,44 +643,46 @@ static void start_connection(device_context_t *context,
     const uint8_t status = gap_connect(address, context->target_address_type);
     if (status != ERROR_CODE_SUCCESS) {
         BLE_LOG("gap_connect rejected request, status 0x%02x\n", status);
-        active_operation = -1;
-        context->state = DEVICE_IDLE;
-        context->retry_after_ms = btstack_run_loop_get_time_ms() + RETRY_BACKOFF_MS;
-        schedule_manager(RETRY_BACKOFF_MS);
+        finish_disconnected(context);
         return;
     }
-    arm_operation_timer(CONNECT_TIMEOUT_MS);
+    arm_operation_timer(context, CONNECT_TIMEOUT_MS);
 }
 
-static void handle_advertisement(const uint8_t *packet) {
+static void handle_advertisement(const uint8_t *packet, uint16_t size) {
     if ((active_operation >= 0) || !scan_active) {
         return;
     }
 
     const uint32_t now = btstack_run_loop_get_time_ms();
     bd_addr_t address;
+    ble_advertisement_policy_t policy;
     gap_event_advertising_report_get_address(packet, address);
     const bd_addr_type_t type = (bd_addr_type_t)(
         gap_event_advertising_report_get_address_type(packet) & 1u);
-    const bool has_hid = advertisement_has_hid(packet);
+    if (!advertisement_policy(packet, size, &policy)) {
+        return;
+    }
 
     if (!address_is_rpa(type, address)) {
         hid_report_role_t known_role = HID_REPORT_ROLE_NONE;
         if (known_role_for_identity(type, address, &known_role)) {
             device_context_t *context = context_for_role(known_role);
             if (context_can_connect(context, now)) {
-                start_connection(context, type, address, false);
+                start_connection(context, type, address, false,
+                                 policy.appearance);
             }
             return;
         }
         device_context_t *context = candidate_context(now);
-        if (has_hid && (context != NULL)) {
-            start_connection(context, type, address, true);
+        if (policy.advertises_hid && (context != NULL)) {
+            start_connection(context, type, address, true, policy.appearance);
         }
         return;
     }
 
-    if (!resolution_request.pending) {
+    if (!resolution_request.pending &&
+        deadline_reached(now, resolution_retry_after_ms)) {
         bool known_role_waiting = false;
         for (unsigned int i = 0; i < DEVICE_CONTEXT_COUNT; ++i) {
             if (saved_roles[i].usable &&
@@ -549,18 +693,33 @@ static void handle_advertisement(const uint8_t *packet) {
             }
         }
         if (known_role_waiting) {
-            resolution_request.pending = true;
-            resolution_request.advertisement_has_hid = has_hid;
+            resolution_request.advertisement_has_hid = policy.advertises_hid;
             resolution_request.address_type = type;
+            resolution_request.appearance_hint = policy.appearance;
             memcpy(resolution_request.address, address, sizeof(bd_addr_t));
-            sm_address_resolution_lookup(type, address);
+            const int status = sm_address_resolution_lookup(type, address);
+            if (status != ERROR_CODE_SUCCESS) {
+                BLE_LOG("Address resolution could not start, status 0x%02x\n",
+                        status);
+                resolution_retry_after_ms = now + RETRY_BACKOFF_MS;
+                schedule_manager(RETRY_BACKOFF_MS);
+                return;
+            }
+            resolution_request.pending = true;
+            resolution_request.token = allocate_attempt_token();
+            btstack_run_loop_set_timer_handler(&resolution_timer,
+                                               resolution_timeout);
+            btstack_run_loop_set_timer(&resolution_timer,
+                                       ADDRESS_RESOLUTION_TIMEOUT_MS);
+            btstack_run_loop_add_timer(&resolution_timer);
             return;
         }
     }
 
     device_context_t *context = candidate_context(now);
-    if (has_hid && (context != NULL) && !resolution_request.pending) {
-        start_connection(context, type, address, true);
+    if (policy.advertises_hid && (context != NULL) &&
+        !resolution_request.pending) {
+        start_connection(context, type, address, true, policy.appearance);
     }
 }
 
@@ -570,7 +729,11 @@ static void handle_resolution_success(const uint8_t *packet) {
     }
     bd_addr_t observed;
     sm_event_identity_resolving_succeeded_get_address(packet, observed);
-    if (memcmp(observed, resolution_request.address, sizeof(bd_addr_t)) != 0) {
+    const bd_addr_type_t observed_type = (bd_addr_type_t)(
+        sm_event_identity_resolving_succeeded_get_addr_type(packet) & 1u);
+    if (!address_equal(observed_type, observed,
+                       resolution_request.address_type,
+                       resolution_request.address)) {
         return;
     }
 
@@ -578,7 +741,11 @@ static void handle_resolution_success(const uint8_t *packet) {
     sm_event_identity_resolving_succeeded_get_identity_address(packet, identity);
     const bd_addr_type_t identity_type = (bd_addr_type_t)(
         sm_event_identity_resolving_succeeded_get_identity_addr_type(packet) & 1u);
-    resolution_request.pending = false;
+    const bd_addr_type_t request_type = resolution_request.address_type;
+    const bool advertised_hid = resolution_request.advertisement_has_hid;
+    const ble_appearance_hint_t appearance_hint =
+        resolution_request.appearance_hint;
+    cancel_resolution_request();
 
     hid_report_role_t role = HID_REPORT_ROLE_NONE;
     if (known_role_for_identity(identity_type, identity, &role)) {
@@ -587,18 +754,19 @@ static void handle_resolution_success(const uint8_t *packet) {
             memcpy(context->identity_address, identity, sizeof(bd_addr_t));
             context->identity_address_type = identity_type;
             context->identity_valid = true;
-            start_connection(context, resolution_request.address_type,
-                             observed, false);
+            start_connection(context, request_type, observed, false,
+                             appearance_hint);
         }
         return;
     }
 
     device_context_t *context = candidate_context(btstack_run_loop_get_time_ms());
-    if (resolution_request.advertisement_has_hid && (context != NULL)) {
+    if (advertised_hid && (context != NULL)) {
         memcpy(context->identity_address, identity, sizeof(bd_addr_t));
         context->identity_address_type = identity_type;
         context->identity_valid = true;
-        start_connection(context, resolution_request.address_type, observed, true);
+        start_connection(context, request_type, observed, true,
+                         appearance_hint);
     }
 }
 
@@ -608,25 +776,26 @@ static void handle_resolution_failure(const uint8_t *packet) {
     }
     bd_addr_t observed;
     sm_event_identity_resolving_failed_get_address(packet, observed);
-    if (memcmp(observed, resolution_request.address, sizeof(bd_addr_t)) != 0) {
+    const bd_addr_type_t observed_type = (bd_addr_type_t)(
+        sm_event_identity_resolving_failed_get_addr_type(packet) & 1u);
+    if (!address_equal(observed_type, observed,
+                       resolution_request.address_type,
+                       resolution_request.address)) {
         return;
     }
-    resolution_request.pending = false;
+    const bd_addr_type_t request_type = resolution_request.address_type;
+    const bool advertised_hid = resolution_request.advertisement_has_hid;
+    const ble_appearance_hint_t appearance_hint =
+        resolution_request.appearance_hint;
+    cancel_resolution_request();
     device_context_t *context = candidate_context(btstack_run_loop_get_time_ms());
-    if (resolution_request.advertisement_has_hid && (context != NULL)) {
-        start_connection(context, resolution_request.address_type, observed, true);
+    if (advertised_hid && (context != NULL)) {
+        start_connection(context, request_type, observed, true,
+                         appearance_hint);
     }
 }
 
-static void begin_hids_discovery(device_context_t *context) {
-    if (!context_security_ok(context)) {
-        disconnect_device(context,
-                          "bond is not 16-byte LE Secure Connections");
-        return;
-    }
-    (void)gap_request_connection_parameter_update(
-        context->connection_handle, CONN_INTERVAL_MIN_UNITS,
-        CONN_INTERVAL_MAX_UNITS, CONN_LATENCY_EVENTS, CONN_TIMEOUT_UNITS);
+static void begin_hids_client_discovery(device_context_t *context) {
     context->state = DEVICE_DISCOVERING;
     const uint8_t status = hids_client_connect(
         context->connection_handle, hids_packet_handler,
@@ -635,15 +804,38 @@ static void begin_hids_discovery(device_context_t *context) {
         disconnect_device(context, "HIDS discovery could not start");
         return;
     }
-    arm_operation_timer(DISCOVERY_TIMEOUT_MS);
+    arm_operation_timer(context, DISCOVERY_TIMEOUT_MS);
+}
+
+static void begin_hids_preflight(device_context_t *context) {
+    if (!context_security_ok(context)) {
+        disconnect_device(context,
+                          "bond is not 16-byte LE Secure Connections");
+        return;
+    }
+    (void)gap_request_connection_parameter_update(
+        context->connection_handle, CONN_INTERVAL_MIN_UNITS,
+        CONN_INTERVAL_MAX_UNITS, CONN_LATENCY_EVENTS, CONN_TIMEOUT_UNITS);
+    context->state = DEVICE_PREFLIGHTING_HIDS;
+    context->hids_service_count = 0u;
+    const int index = context_index(context);
+    const uint8_t status =
+        gatt_client_discover_primary_services_by_uuid16_with_context(
+            hids_preflight_packet_handler, context->connection_handle,
+            ORG_BLUETOOTH_SERVICE_HUMAN_INTERFACE_DEVICE,
+            context->attempt_token, (uint16_t)(index + 1));
+    if (status != ERROR_CODE_SUCCESS) {
+        disconnect_device(context, "HIDS service preflight could not start");
+        return;
+    }
+    arm_operation_timer(context, DISCOVERY_TIMEOUT_MS);
 }
 
 static void handle_connection_complete(const uint8_t *packet) {
     const uint8_t status = gap_subevent_le_connection_complete_get_status(packet);
     const hci_con_handle_t handle =
         gap_subevent_le_connection_complete_get_connection_handle(packet);
-    if ((active_operation < 0) ||
-        (devices[(unsigned int)active_operation].state != DEVICE_CONNECTING)) {
+    if (active_operation < 0) {
         if (status == ERROR_CODE_SUCCESS) {
             (void)gap_disconnect(handle);
         }
@@ -651,13 +843,48 @@ static void handle_connection_complete(const uint8_t *packet) {
     }
 
     device_context_t *context = &devices[(unsigned int)active_operation];
-    cancel_operation_timer();
+    bd_addr_t peer_address;
+    bd_addr_t peer_rpa;
+    const bd_addr_type_t peer_type = (bd_addr_type_t)(
+        gap_subevent_le_connection_complete_get_peer_address_type(packet) & 1u);
+    gap_subevent_le_connection_complete_get_peer_address(packet, peer_address);
+    bool target_matches = address_equal(context->target_address_type,
+                                        context->target_address,
+                                        peer_type, peer_address);
+    if (!target_matches &&
+        address_is_rpa(context->target_address_type, context->target_address)) {
+        gap_subevent_le_connection_complete_get_peer_resolvable_private_address(
+            packet, peer_rpa);
+        target_matches = address_equal(context->target_address_type,
+                                       context->target_address,
+                                       BD_ADDR_TYPE_LE_RANDOM, peer_rpa);
+    }
+    if (!target_matches ||
+        (context->state != DEVICE_CONNECTING &&
+         context->state != DEVICE_CONNECT_CANCELING)) {
+        if (status == ERROR_CODE_SUCCESS) {
+            (void)gap_disconnect(handle);
+        }
+        return;
+    }
+
+    cancel_operation_timer(context);
+    if (context->state == DEVICE_CONNECT_CANCELING) {
+        if (status == ERROR_CODE_SUCCESS) {
+            context->connection_handle = handle;
+            context->state = DEVICE_DISCONNECTING;
+            context->disconnect_retries = 0u;
+            (void)gap_disconnect(handle);
+            arm_operation_timer(context, DISCONNECT_TIMEOUT_MS);
+        } else {
+            finish_disconnected(context);
+        }
+        return;
+    }
     if (status != ERROR_CODE_SUCCESS) {
-        BLE_LOG("Connection failed, status 0x%02x\n", status);
-        active_operation = -1;
-        context->state = DEVICE_IDLE;
-        context->retry_after_ms = btstack_run_loop_get_time_ms() + RETRY_BACKOFF_MS;
-        schedule_manager(RETRY_BACKOFF_MS);
+        BLE_LOG("Connection attempt %u failed, status 0x%02x\n",
+                context->attempt_token, status);
+        finish_disconnected(context);
         return;
     }
 
@@ -671,8 +898,18 @@ static void handle_connection_complete(const uint8_t *packet) {
         context->identity_address_type = context->target_address_type;
         context->identity_valid = true;
     }
+    if (context->enrollment) {
+        context->device_db_occupied_before = device_db_occupied_mask();
+        context->enrollment_db_snapshot_valid = true;
+        if (!device_db_has_free_slot(context->device_db_occupied_before)) {
+            disconnect_device(
+                context,
+                "LE bond database is full; valid bonds are protected");
+            return;
+        }
+    }
     sm_request_pairing(handle);
-    arm_operation_timer(SECURITY_TIMEOUT_MS);
+    arm_operation_timer(context, SECURITY_TIMEOUT_MS);
 }
 
 static void handle_disconnection(const uint8_t *packet) {
@@ -699,6 +936,17 @@ static void handle_identity_created(const uint8_t *packet) {
         sm_event_identity_created_get_identity_addr_type(packet) & 1u);
     context->identity_valid = true;
     context->device_db_index = sm_event_identity_created_get_index(packet);
+    if (context->enrollment && context->enrollment_db_snapshot_valid &&
+        context->device_db_index >= 0 &&
+        context->device_db_index < 32 &&
+        (context->device_db_occupied_before &
+         (UINT32_C(1) << (unsigned int)context->device_db_index)) == 0u) {
+        context->new_bond_uncommitted = true;
+        context->new_bond_db_index = context->device_db_index;
+        context->new_bond_identity_type = context->identity_address_type;
+        memcpy(context->new_bond_identity, context->identity_address,
+               sizeof(bd_addr_t));
+    }
 }
 
 static void handle_pairing_complete(const uint8_t *packet) {
@@ -708,13 +956,14 @@ static void handle_pairing_complete(const uint8_t *packet) {
         return;
     }
     const uint8_t status = sm_event_pairing_complete_get_status(packet);
-    if (!context->enrollment || (status != ERROR_CODE_SUCCESS)) {
+    if (!context->enrollment || (status != ERROR_CODE_SUCCESS) ||
+        !enrollment_is_current(context)) {
         disconnect_device(context, context->enrollment
                                        ? "pairing failed"
-                                       : "unexpected new pairing for saved role");
+                                       : "pairing was not authorized or enrollment expired");
         return;
     }
-    begin_hids_discovery(context);
+    begin_hids_preflight(context);
 }
 
 static void handle_reencryption_complete(const uint8_t *packet) {
@@ -729,7 +978,7 @@ static void handle_reencryption_complete(const uint8_t *packet) {
         disconnect_device(context, "saved bond re-encryption failed");
         return;
     }
-    begin_hids_discovery(context);
+    begin_hids_preflight(context);
 }
 
 static void publish_normalized(device_context_t *context,
@@ -742,12 +991,17 @@ static void publish_normalized(device_context_t *context,
                sizeof(report.keycode));
         (void)bridge_keyboard_publish(context->generation, &report);
     } else if (normalized->role == HID_REPORT_ROLE_MOUSE) {
-        (void)bridge_mouse_publish(context->generation,
-                                   normalized->data.mouse.buttons,
-                                   normalized->data.mouse.x,
-                                   normalized->data.mouse.y,
-                                   normalized->data.mouse.wheel,
-                                   normalized->data.mouse.pan);
+        const bridge_mouse_publish_result_t publish_result =
+            bridge_mouse_publish(context->generation,
+                                 normalized->data.mouse.buttons,
+                                 normalized->data.mouse.x,
+                                 normalized->data.mouse.y,
+                                 normalized->data.mouse.wheel,
+                                 normalized->data.mouse.pan);
+        if (publish_result == BRIDGE_MOUSE_PUBLISH_OVERFLOW) {
+            disconnect_device(context,
+                              "mouse mailbox accumulator overflowed");
+        }
     }
 }
 
@@ -760,10 +1014,17 @@ static void handle_hids_connected(const uint8_t *packet) {
     if ((gattservice_subevent_hid_service_connected_get_status(packet) !=
          ERROR_CODE_SUCCESS) ||
         (gattservice_subevent_hid_service_connected_get_num_instances(packet) !=
-         1u)) {
+         1u) || (context->hids_service_count != 1u)) {
         disconnect_device(context, "requires exactly one valid HIDS service");
         return;
     }
+
+    /*
+     * BTstack 501e6d2 exposes neither its discovered input-characteristic
+     * table nor value handles through the public HIDS API. Event framing,
+     * service index, Report ID, and descriptor lengths are checked below,
+     * but characteristic-to-ID uniqueness cannot be preflighted here.
+     */
 
     const uint16_t map_length =
         hids_client_descriptor_storage_get_descriptor_len(context->hids_cid, 0);
@@ -788,7 +1049,18 @@ static void handle_hids_connected(const uint8_t *packet) {
     }
 
     const hid_report_role_t compiled_role = context->report_plan.role;
+    if (!ble_bridge_appearance_allows_role(context->appearance_hint,
+                                           (uint8_t)compiled_role)) {
+        disconnect_device(context,
+                          "specific GAP Appearance conflicts with Report Map");
+        return;
+    }
     if (context->role == HID_REPORT_ROLE_NONE) {
+        if (!enrollment_is_current(context)) {
+            disconnect_device(context,
+                              "enrollment expired before authorization commit");
+            return;
+        }
         if ((compiled_role == HID_REPORT_ROLE_NONE) ||
             saved_roles[role_index(compiled_role)].present ||
             (context_for_role(compiled_role) != NULL)) {
@@ -805,11 +1077,12 @@ static void handle_hids_connected(const uint8_t *packet) {
 
     hid_report_runtime_init(&context->report_runtime, &context->report_plan);
     context->generation = bridge_role_activate(mailbox_role(context->role));
-    context->malformed_reports = 0u;
     context->state = DEVICE_READY;
     context->enrollment = false;
-    active_operation = -1;
-    cancel_operation_timer();
+    if (active_operation == context_index(context)) {
+        active_operation = -1;
+    }
+    cancel_operation_timer(context);
     BLE_LOG("%s ready (Report Map %u bytes)\n", role_name(context->role),
             map_length);
 
@@ -840,24 +1113,39 @@ static void handle_hids_report(const uint8_t *packet) {
         return;
     }
     if (result != HID_NORMALIZE_OK) {
-        if (context->malformed_reports < UINT8_MAX) {
-            context->malformed_reports++;
-        }
-        if (context->malformed_reports >= MALFORMED_REPORT_LIMIT) {
-            disconnect_device(context, "repeated malformed HID reports");
-        }
+        disconnect_device(context, "structurally invalid HID input report");
         return;
     }
 
-    context->malformed_reports = 0u;
     publish_normalized(context, &normalized);
 }
 
 static void drive_connection_manager(void) {
     const uint32_t now = btstack_run_loop_get_time_ms();
+    if (!radio_working ||
+        !__atomic_load_n(&usb_transport_requested, __ATOMIC_ACQUIRE)) {
+        return;
+    }
     if (enrollment_open && deadline_reached(now, enrollment_deadline_ms)) {
         enrollment_open = false;
         BLE_LOG("First-run enrollment window closed\n");
+        for (unsigned int i = 0; i < DEVICE_CONTEXT_COUNT; ++i) {
+            device_context_t *context = &devices[i];
+            if (!context->enrollment) {
+                continue;
+            }
+            context->enrollment = false;
+            if (context->state == DEVICE_CONNECTING) {
+                cancel_operation_timer(context);
+                (void)gap_connect_cancel();
+                context->state = DEVICE_CONNECT_CANCELING;
+                arm_operation_timer(context, CONNECT_TIMEOUT_MS);
+            } else if (context->state != DEVICE_CONNECT_CANCELING &&
+                       context->state != DEVICE_DISCONNECTING) {
+                disconnect_device(context,
+                                  "enrollment expired during operation");
+            }
+        }
     }
     if (active_operation >= 0) {
         return;
@@ -884,25 +1172,54 @@ static void drive_connection_manager(void) {
 }
 
 static void operation_timeout(btstack_timer_source_t *timer) {
-    (void)timer;
-    if (active_operation < 0) {
+    device_context_t *context =
+        (device_context_t *)btstack_run_loop_get_timer_context(timer);
+    if (context == NULL || context_index(context) < 0 ||
+        context->timer_state != context->state ||
+        context->timer_attempt_token != context->attempt_token) {
         return;
     }
-    device_context_t *context = &devices[(unsigned int)active_operation];
+    context->timer_state = DEVICE_IDLE;
+    context->timer_attempt_token = 0u;
     if (context->state == DEVICE_CONNECTING) {
-        BLE_LOG("Connection attempt timed out\n");
+        BLE_LOG("Connection attempt %u timed out; cancel pending\n",
+                context->attempt_token);
         (void)gap_connect_cancel();
-        active_operation = -1;
-        context->state = DEVICE_IDLE;
-        context->retry_after_ms = btstack_run_loop_get_time_ms() + RETRY_BACKOFF_MS;
-        schedule_manager(RETRY_BACKOFF_MS);
+        context->state = DEVICE_CONNECT_CANCELING;
+        arm_operation_timer(context, CONNECT_TIMEOUT_MS);
+        return;
+    }
+    if (context->state == DEVICE_CONNECT_CANCELING) {
+        BLE_LOG("Connection cancellation timed out; restarting BLE radio\n");
+        quiesce_radio();
         return;
     }
     if (context->state == DEVICE_DISCONNECTING) {
-        BLE_LOG("Disconnect completion timed out; waiting for controller event\n");
+        if (context->disconnect_retries == 0u) {
+            context->disconnect_retries = 1u;
+            BLE_LOG("Disconnect completion timed out; retrying once\n");
+            (void)gap_disconnect(context->connection_handle);
+            arm_operation_timer(context, DISCONNECT_TIMEOUT_MS);
+        } else {
+            BLE_LOG("Disconnect retry timed out; restarting BLE radio\n");
+            quiesce_radio();
+        }
         return;
     }
     disconnect_device(context, "security or discovery timeout");
+}
+
+static void resolution_timeout(btstack_timer_source_t *timer) {
+    (void)timer;
+    if (!resolution_request.pending) {
+        return;
+    }
+    BLE_LOG("Address resolution request %u timed out\n",
+            resolution_request.token);
+    resolution_request.pending = false;
+    resolution_retry_after_ms =
+        btstack_run_loop_get_time_ms() + RETRY_BACKOFF_MS;
+    schedule_manager(RETRY_BACKOFF_MS);
 }
 
 static void manager_timeout(btstack_timer_source_t *timer) {
@@ -945,25 +1262,124 @@ static void led_timeout(btstack_timer_source_t *timer) {
     btstack_run_loop_add_timer(timer);
 }
 
+static void reset_radio_contexts(void) {
+    if (scan_active) {
+        gap_stop_scan();
+        scan_active = false;
+    }
+    cancel_resolution_request();
+    (void)btstack_run_loop_remove_timer(&manager_timer);
+    manager_timer_active = false;
+    active_operation = -1;
+
+    for (unsigned int i = 0; i < DEVICE_CONTEXT_COUNT; ++i) {
+        device_context_t *context = &devices[i];
+        cancel_operation_timer(context);
+        release_device(context);
+        discard_uncommitted_bond(context);
+        if (context->hids_cid != 0u) {
+            (void)hids_client_disconnect(context->hids_cid);
+            context->hids_cid = 0u;
+        }
+        if (context->connection_handle != HCI_CON_HANDLE_INVALID) {
+            (void)gap_disconnect(context->connection_handle);
+        }
+    }
+    initialize_device_contexts();
+}
+
+static void quiesce_radio(void) {
+    if (radio_transition_pending) {
+        return;
+    }
+    reset_radio_contexts();
+    enrollment_open = false;
+    radio_transition_pending = true;
+    BLE_LOG("Quiescing BLE scanning, links, and radio\n");
+    const int status = hci_power_control(HCI_POWER_OFF);
+    if (status != ERROR_CODE_SUCCESS) {
+        radio_transition_pending = false;
+        BLE_LOG("BLE radio power-off request failed, status 0x%02x\n",
+                status);
+    }
+}
+
+static void transport_timeout(btstack_timer_source_t *timer) {
+    const bool requested =
+        __atomic_load_n(&usb_transport_requested, __ATOMIC_ACQUIRE);
+    if (!requested && radio_working && !radio_transition_pending) {
+        quiesce_radio();
+    } else if (requested && !radio_working && !radio_transition_pending) {
+        radio_transition_pending = true;
+        BLE_LOG("Resuming BLE radio after USB activity\n");
+        const int status = hci_power_control(HCI_POWER_ON);
+        if (status != ERROR_CODE_SUCCESS) {
+            radio_transition_pending = false;
+            BLE_LOG("BLE radio power-on request failed, status 0x%02x\n",
+                    status);
+        }
+    }
+    btstack_run_loop_set_timer(timer, TRANSPORT_TICK_MS);
+    btstack_run_loop_add_timer(timer);
+}
+
+void ble_bridge_set_usb_active(bool active) {
+    __atomic_store_n(&usb_transport_requested, active, __ATOMIC_RELEASE);
+}
+
 static void packet_handler(uint8_t packet_type, uint16_t channel,
                            uint8_t *packet, uint16_t size) {
     (void)channel;
-    (void)size;
-    if (packet_type != HCI_EVENT_PACKET) {
+    if (packet_type != HCI_EVENT_PACKET ||
+        !ble_bridge_event_frame_valid(packet, size, 2u)) {
         return;
     }
 
     switch (hci_event_packet_get_type(packet)) {
         case BTSTACK_EVENT_STATE:
+            if (size < 3u) {
+                break;
+            }
+            if (btstack_event_state_get_state(packet) == HCI_STATE_OFF) {
+                radio_working = false;
+                radio_transition_pending = false;
+                reset_radio_contexts();
+                if (__atomic_load_n(&usb_transport_requested,
+                                    __ATOMIC_ACQUIRE)) {
+                    radio_transition_pending = true;
+                    const int status = hci_power_control(HCI_POWER_ON);
+                    if (status != ERROR_CODE_SUCCESS) {
+                        radio_transition_pending = false;
+                        BLE_LOG("BLE radio restart failed, status 0x%02x\n",
+                                status);
+                    }
+                }
+                break;
+            }
             if (btstack_event_state_get_state(packet) != HCI_STATE_WORKING) {
                 break;
             }
+            radio_working = true;
+            radio_transition_pending = false;
+            if (!__atomic_load_n(&usb_transport_requested,
+                                 __ATOMIC_ACQUIRE)) {
+                quiesce_radio();
+                break;
+            }
+            initialize_device_contexts();
+            memset(saved_roles, 0, sizeof(saved_roles));
             btstack_tlv_get_instance(&tlv_impl, &tlv_context);
             load_saved_role(HID_REPORT_ROLE_KEYBOARD);
             load_saved_role(HID_REPORT_ROLE_MOUSE);
-            enrollment_open = !saved_roles[0].present || !saved_roles[1].present;
-            enrollment_deadline_ms =
-                btstack_run_loop_get_time_ms() + ENROLLMENT_WINDOW_MS;
+            const bool enrollment_needed =
+                !saved_roles[0].present || !saved_roles[1].present;
+            const uint32_t now = btstack_run_loop_get_time_ms();
+            if (enrollment_needed && !enrollment_window_started) {
+                enrollment_window_started = true;
+                enrollment_deadline_ms = now + ENROLLMENT_WINDOW_MS;
+            }
+            enrollment_open = enrollment_needed &&
+                              !deadline_reached(now, enrollment_deadline_ms);
             if (enrollment_open) {
                 BLE_LOG("First-run enrollment open for 120 seconds; put only intended devices in pairing mode\n");
                 schedule_manager(MANAGER_RETRY_MS);
@@ -971,13 +1387,18 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
             drive_connection_manager();
             break;
         case GAP_EVENT_ADVERTISING_REPORT:
-            handle_advertisement(packet);
+            if (size >= 12u && radio_working) {
+                handle_advertisement(packet, size);
+            }
             break;
         case HCI_EVENT_DISCONNECTION_COMPLETE:
-            handle_disconnection(packet);
+            if (size >= 6u) {
+                handle_disconnection(packet);
+            }
             break;
         case HCI_EVENT_META_GAP:
-            if (hci_event_gap_meta_get_subevent_code(packet) ==
+            if (size >= 36u &&
+                hci_event_gap_meta_get_subevent_code(packet) ==
                 GAP_SUBEVENT_LE_CONNECTION_COMPLETE) {
                 handle_connection_complete(packet);
             }
@@ -990,8 +1411,8 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
 static void sm_packet_handler(uint8_t packet_type, uint16_t channel,
                               uint8_t *packet, uint16_t size) {
     (void)channel;
-    (void)size;
-    if (packet_type != HCI_EVENT_PACKET) {
+    if (packet_type != HCI_EVENT_PACKET ||
+        !ble_bridge_event_frame_valid(packet, size, 2u)) {
         return;
     }
 
@@ -999,67 +1420,222 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel,
     device_context_t *context;
     switch (hci_event_packet_get_type(packet)) {
         case SM_EVENT_IDENTITY_RESOLVING_SUCCEEDED:
-            handle_resolution_success(packet);
+            /* index occupies bytes 18..19 in the pinned BTstack event. */
+            if (size >= 20u) {
+                handle_resolution_success(packet);
+            }
             break;
         case SM_EVENT_IDENTITY_RESOLVING_FAILED:
-            handle_resolution_failure(packet);
+            if (size >= 11u) {
+                handle_resolution_failure(packet);
+            }
             break;
         case SM_EVENT_IDENTITY_CREATED:
-            handle_identity_created(packet);
+            /* identity address and database index extend through byte 19. */
+            if (size >= 20u) {
+                handle_identity_created(packet);
+            }
             break;
         case SM_EVENT_JUST_WORKS_REQUEST:
+            /* Includes peer address and secure-connection flag through byte 11. */
+            if (size < 12u) {
+                if (size >= 4u) {
+                    sm_bonding_decline(
+                        sm_event_just_works_request_get_handle(packet));
+                }
+                break;
+            }
             handle = sm_event_just_works_request_get_handle(packet);
             context = context_by_handle(handle);
-            if ((context != NULL) && context->enrollment &&
-                (context->state == DEVICE_SECURING)) {
+            if ((context != NULL) &&
+                (context->state == DEVICE_SECURING) &&
+                enrollment_is_current(context)) {
                 sm_just_works_confirm(handle);
             } else {
                 sm_bonding_decline(handle);
+                if (context != NULL) {
+                    disconnect_device(context,
+                                      "Just Works request was not within enrollment window");
+                }
             }
             break;
         case SM_EVENT_NUMERIC_COMPARISON_REQUEST:
-            sm_bonding_decline(
-                sm_event_numeric_comparison_request_get_handle(packet));
+            if (size >= 4u) {
+                sm_bonding_decline(
+                    sm_event_numeric_comparison_request_get_handle(packet));
+            }
             break;
         case SM_EVENT_PASSKEY_DISPLAY_NUMBER:
-            sm_bonding_decline(
-                sm_event_passkey_display_number_get_handle(packet));
+            if (size >= 4u) {
+                sm_bonding_decline(
+                    sm_event_passkey_display_number_get_handle(packet));
+            }
             break;
         case SM_EVENT_PASSKEY_INPUT_NUMBER:
-            sm_bonding_decline(
-                sm_event_passkey_input_number_get_handle(packet));
+            if (size >= 4u) {
+                sm_bonding_decline(
+                    sm_event_passkey_input_number_get_handle(packet));
+            }
             break;
         case SM_EVENT_PAIRING_COMPLETE:
-            handle_pairing_complete(packet);
+            if (size >= 13u) {
+                handle_pairing_complete(packet);
+            }
             break;
         case SM_EVENT_REENCRYPTION_COMPLETE:
-            handle_reencryption_complete(packet);
+            if (size >= 12u) {
+                handle_reencryption_complete(packet);
+            }
             break;
         default:
             break;
     }
 }
 
+static device_context_t *preflight_context(const uint8_t *packet,
+                                           bool query_complete) {
+    const uint16_t connection_id = query_complete ?
+        gatt_event_query_complete_get_connection_id(packet) :
+        gatt_event_service_query_result_get_connection_id(packet);
+    const uint16_t service_id = query_complete ?
+        gatt_event_query_complete_get_service_id(packet) :
+        gatt_event_service_query_result_get_service_id(packet);
+    const hci_con_handle_t handle = query_complete ?
+        gatt_event_query_complete_get_handle(packet) :
+        gatt_event_service_query_result_get_handle(packet);
+
+    if (connection_id == 0u || connection_id > DEVICE_CONTEXT_COUNT) {
+        return NULL;
+    }
+    device_context_t *context = &devices[connection_id - 1u];
+    if (context->state != DEVICE_PREFLIGHTING_HIDS ||
+        context->connection_handle != handle ||
+        context->attempt_token != service_id ||
+        active_operation != context_index(context)) {
+        return NULL;
+    }
+    return context;
+}
+
+static void hids_preflight_packet_handler(uint8_t packet_type,
+                                          uint16_t channel,
+                                          uint8_t *packet, uint16_t size) {
+    (void)channel;
+    if (packet_type != HCI_EVENT_PACKET ||
+        !ble_bridge_event_frame_valid(packet, size, 2u)) {
+        return;
+    }
+
+    if (hci_event_packet_get_type(packet) == GATT_EVENT_SERVICE_QUERY_RESULT) {
+        if (size < 8u) {
+            return;
+        }
+        device_context_t *context = preflight_context(packet, false);
+        if (context != NULL && context->hids_service_count < 2u) {
+            context->hids_service_count++;
+        }
+        return;
+    }
+    if (hci_event_packet_get_type(packet) == GATT_EVENT_QUERY_COMPLETE) {
+        if (size < 9u) {
+            return;
+        }
+        device_context_t *context = preflight_context(packet, true);
+        if (context == NULL) {
+            return;
+        }
+        cancel_operation_timer(context);
+        if (gatt_event_query_complete_get_att_status(packet) !=
+                ATT_ERROR_SUCCESS ||
+            context->hids_service_count != 1u) {
+            disconnect_device(context,
+                              "preflight requires exactly one HIDS service");
+            return;
+        }
+        begin_hids_client_discovery(context);
+    }
+}
+
+static void reject_malformed_hids_report(const uint8_t *packet, uint16_t size,
+                                         const char *reason) {
+    if (packet == NULL || size < 5u) {
+        return;
+    }
+    device_context_t *context = context_by_cid(
+        gattservice_subevent_hid_report_get_hids_cid(packet));
+    if (context != NULL && context->state == DEVICE_READY) {
+        disconnect_device(context, reason);
+    }
+}
+
 static void hids_packet_handler(uint8_t packet_type, uint16_t channel,
                                 uint8_t *packet, uint16_t size) {
-    (void)channel;
-    (void)size;
-    if ((packet_type != HCI_EVENT_PACKET) ||
-        (hci_event_packet_get_type(packet) != HCI_EVENT_GATTSERVICE_META)) {
+    if (!ble_bridge_hids_packet_type_allowed(
+            packet_type, HCI_EVENT_PACKET, HCI_EVENT_GATTSERVICE_META) ||
+        packet == NULL || size < 3u ||
+        hci_event_packet_get_type(packet) != HCI_EVENT_GATTSERVICE_META) {
+        return;
+    }
+    if (!ble_bridge_event_frame_valid(packet, size, 3u)) {
+        if (packet[2] == GATTSERVICE_SUBEVENT_HID_REPORT) {
+            reject_malformed_hids_report(
+                packet, size, "invalid HIDS event length encoding");
+        }
         return;
     }
 
     switch (hci_event_gattservice_meta_get_subevent_code(packet)) {
-        case GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED:
+        case GATTSERVICE_SUBEVENT_HID_SERVICE_CONNECTED: {
+            if (size < 8u) {
+                break;
+            }
+            const uint16_t cid =
+                gattservice_subevent_hid_service_connected_get_hids_cid(packet);
+            if (!ble_bridge_hids_callback_route_valid(
+                    packet_type, channel, cid, HCI_EVENT_PACKET,
+                    HCI_EVENT_GATTSERVICE_META)) {
+                break;
+            }
             handle_hids_connected(packet);
             break;
-        case GATTSERVICE_SUBEVENT_HID_REPORT:
+        }
+        case GATTSERVICE_SUBEVENT_HID_REPORT: {
+            if (size < 10u) {
+                reject_malformed_hids_report(
+                    packet, size, "truncated HIDS report event");
+                break;
+            }
+            const uint16_t cid =
+                gattservice_subevent_hid_report_get_hids_cid(packet);
+            const uint16_t report_length =
+                gattservice_subevent_hid_report_get_report_len(packet);
+            if (!ble_bridge_hids_callback_route_valid(
+                    packet_type, channel, cid, HCI_EVENT_PACKET,
+                    HCI_EVENT_GATTSERVICE_META) ||
+                report_length == 0u ||
+                report_length > HID_REPORT_INPUT_MAX_SIZE + 1u ||
+                report_length != size - 9u) {
+                reject_malformed_hids_report(
+                    packet, size, "invalid HIDS callback framing or CID");
+                break;
+            }
             handle_hids_report(packet);
             break;
+        }
         case GATTSERVICE_SUBEVENT_HID_SERVICE_DISCONNECTED: {
-            device_context_t *context = context_by_cid(
+            if (size < 5u) {
+                break;
+            }
+            const uint16_t cid =
                 gattservice_subevent_hid_service_disconnected_get_hids_cid(
-                    packet));
+                    packet);
+            if (!ble_bridge_hids_callback_route_valid(
+                    packet_type, channel, cid, HCI_EVENT_PACKET,
+                    HCI_EVENT_GATTSERVICE_META)) {
+                break;
+            }
+            device_context_t *context = context_by_cid(
+                cid);
             if (context != NULL) {
                 release_device(context);
                 context->hids_cid = 0u;
@@ -1094,7 +1670,9 @@ int btstack_main(int argc, const char *argv[]) {
     btstack_run_loop_set_timer_handler(&led_timer, led_timeout);
     btstack_run_loop_set_timer(&led_timer, LED_TICK_MS);
     btstack_run_loop_add_timer(&led_timer);
-    hci_power_control(HCI_POWER_ON);
+    btstack_run_loop_set_timer_handler(&transport_timer, transport_timeout);
+    btstack_run_loop_set_timer(&transport_timer, TRANSPORT_TICK_MS);
+    btstack_run_loop_add_timer(&transport_timer);
     return 0;
 }
 
