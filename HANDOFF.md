@@ -20,6 +20,10 @@ Upstream baseline: `2c6a303d1f172e56b271283af978efdcc483a389`
 
 Release binaries were built from source checkpoint: `2b4255c`
 
+Packaged artifact/documentation checkpoint `6d84328` is pushed to
+`origin/main`; GitHub reported repository visibility `PRIVATE`. The working
+tree and `origin/main` were synchronized immediately after that push.
+
 ## Current implementation
 
 - USB enumerates one keyboard interface and one mouse interface at boot; BLE
@@ -94,14 +98,20 @@ The exact packaged files are in `release/`; `release/SHA256SUMS.txt` is the
 authoritative manifest. The normal image is
 `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2`.
 
-## Immediate continuation checklist
+## Continuation checklist
 
-1. Obtain the final independent release re-review; resolve any substantive
-   finding without weakening the PRE_HARDWARE_TEST boundary.
-2. Commit and push the documentation/artifact tree to `main`; confirm the
-   GitHub repository remains private and update this file with the final commit.
-3. Follow `docs/first-hardware-test.md` when the board arrives and record every
+All concrete findings from the visible independent code and adversarial review
+reports were resolved and regression-checked. Post-fix reviewer turns completed
+without returning a visible verdict payload through the task runner; no new
+finding was delivered. If an organizational process requires a literal
+independent `APPROVE`, repeat a narrow read-only audit of the immutable pushed
+commit rather than treating the missing payload as approval or rejection.
+
+1. Follow `docs/first-hardware-test.md` when the board arrives and record every
    result. Do not promote the release label until the hardware gates pass.
+2. If any hardware stage fails, preserve the exact firmware hash, device model,
+   LED state, PC descriptor capture, and reproduction steps before changing
+   code.
 
 ## Known residual limitation
 
