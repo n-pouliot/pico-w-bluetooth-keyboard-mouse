@@ -2,6 +2,10 @@
 
 #include <string.h>
 
+_Static_assert(BLE_BRIDGE_PAIRING_PASSKEY >= UINT32_C(100000) &&
+                   BLE_BRIDGE_PAIRING_PASSKEY <= UINT32_C(999999),
+               "pairing passkey must contain exactly six decimal digits");
+
 enum {
     AD_TYPE_UUID16_INCOMPLETE = 0x02,
     AD_TYPE_UUID16_COMPLETE = 0x03,
@@ -183,4 +187,13 @@ bool ble_bridge_bond_removal_allowed(
            expected_index == observed_index &&
            ble_bridge_address_matches(expected_type, expected_address,
                                       observed_type, observed_address);
+}
+
+bool ble_bridge_passkey_display_allowed(bool context_securing,
+                                        bool enrollment_current,
+                                        bool secure_connection,
+                                        uint32_t displayed_passkey)
+{
+    return context_securing && enrollment_current && secure_connection &&
+           displayed_passkey == BLE_BRIDGE_PAIRING_PASSKEY;
 }

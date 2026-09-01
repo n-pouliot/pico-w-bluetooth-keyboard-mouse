@@ -7,6 +7,7 @@
  */
 
 #include <stdbool.h>
+#include <inttypes.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -1488,9 +1489,33 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel,
             }
             break;
         case SM_EVENT_PASSKEY_DISPLAY_NUMBER:
-            if (size >= 4u) {
-                sm_bonding_decline(
-                    sm_event_passkey_display_number_get_handle(packet));
+            if (size < 16u) {
+                if (size >= 4u) {
+                    sm_bonding_decline(
+                        sm_event_passkey_display_number_get_handle(packet));
+                }
+                break;
+            }
+            handle = sm_event_passkey_display_number_get_handle(packet);
+            context = context_by_handle(handle);
+            if (ble_bridge_passkey_display_allowed(
+                    context != NULL && context->state == DEVICE_SECURING,
+                    context != NULL && enrollment_is_current(context),
+                    sm_event_passkey_display_number_get_secure_connection(
+                        packet) != 0u,
+                    sm_event_passkey_display_number_get_passkey(packet))) {
+                BLE_LOG("Passkey pairing for %s: type %06" PRIu32
+                        " on the keyboard, then press Enter\n",
+                        role_name(context->role),
+                        (uint32_t)BLE_BRIDGE_PAIRING_PASSKEY);
+                arm_operation_timer(context, SECURITY_TIMEOUT_MS);
+            } else {
+                sm_bonding_decline(handle);
+                if (context != NULL) {
+                    disconnect_device(
+                        context,
+                        "Passkey request was invalid or outside enrollment window");
+                }
             }
             break;
         case SM_EVENT_PASSKEY_INPUT_NUMBER:
@@ -1676,7 +1701,8 @@ int btstack_main(int argc, const char *argv[]) {
     initialize_device_contexts();
     l2cap_init();
     sm_init();
-    sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
+    sm_set_io_capabilities(IO_CAPABILITY_DISPLAY_ONLY);
+    sm_use_fixed_passkey_in_display_role(BLE_BRIDGE_PAIRING_PASSKEY);
     sm_set_encryption_key_size_range(16, 16);
     sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION |
                                        SM_AUTHREQ_BONDING);

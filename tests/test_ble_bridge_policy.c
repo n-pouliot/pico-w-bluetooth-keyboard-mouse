@@ -11,6 +11,9 @@
         }                                                                      \
     } while (0)
 
+_Static_assert(BLE_BRIDGE_PAIRING_PASSKEY == UINT32_C(739241),
+               "release passkey changed without updating its tests");
+
 static int test_callback_forms_and_frames(void) {
     const uint8_t frame[] = {0xf2u, 0x06u, 0x01u, 0u, 0u, 0u, 0u, 0u};
     CHECK(ble_bridge_hids_packet_type_allowed(0x04u, 0x04u, 0xf2u));
@@ -110,11 +113,26 @@ static int test_exact_bond_removal_policy(void) {
     return 0;
 }
 
+static int test_fixed_passkey_policy(void) {
+    CHECK(ble_bridge_passkey_display_allowed(
+        true, true, true, BLE_BRIDGE_PAIRING_PASSKEY));
+    CHECK(!ble_bridge_passkey_display_allowed(
+        false, true, true, BLE_BRIDGE_PAIRING_PASSKEY));
+    CHECK(!ble_bridge_passkey_display_allowed(
+        true, false, true, BLE_BRIDGE_PAIRING_PASSKEY));
+    CHECK(!ble_bridge_passkey_display_allowed(
+        true, true, false, BLE_BRIDGE_PAIRING_PASSKEY));
+    CHECK(!ble_bridge_passkey_display_allowed(
+        true, true, true, BLE_BRIDGE_PAIRING_PASSKEY + UINT32_C(1)));
+    return 0;
+}
+
 int test_ble_bridge_policy(void) {
     CHECK(test_callback_forms_and_frames() == 0);
     CHECK(test_advertisement_appearance_policy() == 0);
     CHECK(test_address_matching() == 0);
     CHECK(test_radio_restart_policy() == 0);
     CHECK(test_exact_bond_removal_policy() == 0);
+    CHECK(test_fixed_passkey_policy() == 0);
     return 0;
 }

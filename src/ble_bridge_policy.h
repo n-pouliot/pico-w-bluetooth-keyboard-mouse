@@ -5,6 +5,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/* Public by design: the user types this on a passkey-entry keyboard. */
+#define BLE_BRIDGE_PAIRING_PASSKEY UINT32_C(739241)
+
 typedef enum {
     BLE_APPEARANCE_HINT_NONE = 0,
     BLE_APPEARANCE_HINT_GENERIC_HID,
@@ -63,5 +66,11 @@ bool ble_bridge_bond_removal_allowed(
     bool slot_was_occupied, int expected_index, uint8_t expected_type,
     const uint8_t expected_address[6], int observed_index,
     uint8_t observed_type, const uint8_t observed_address[6]);
+
+/* Authorizes the informational display event for the fixed-code workflow. */
+bool ble_bridge_passkey_display_allowed(bool context_securing,
+                                        bool enrollment_current,
+                                        bool secure_connection,
+                                        uint32_t displayed_passkey);
 
 #endif
