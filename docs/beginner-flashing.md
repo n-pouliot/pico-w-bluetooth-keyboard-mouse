@@ -36,8 +36,9 @@ image only when intentionally changing pairing state.
 
 ## Enroll the peripherals on the PC
 
-The first empty-role enrollment window lasts 120 seconds after the PC configures
-USB.
+The first empty-role enrollment window lasts 180 seconds after the PC configures
+USB. Read the keyboard and mouse steps before copying the UF2 so both devices
+are charged and within reach.
 
 1. Keep unrelated nearby keyboards and mice out of pairing mode.
 2. Do **not** open Windows Bluetooth settings or pair either device to Windows.
@@ -45,9 +46,11 @@ USB.
 3. On the MX Mechanical, select the unused Easy-Switch slot `3`, then press and
    hold key `3` for about three seconds. Release it only when the slot-3 light
    is blinking rapidly. A short press merely switches slots and is not enough.
-4. While that light is blinking, type `739241` on the MX Mechanical and press
-   Enter. Type it promptly. Those digits are consumed by Bluetooth pairing and
-   should not appear in Notepad or another PC application.
+4. Watch the **Pico's onboard LED**. It first changes to a faster connection
+   blink. When it gives a repeating pattern of **three short flashes followed
+   by a pause**, type `739241` on the MX Mechanical and press Enter. Do not type
+   the code before that three-flash prompt. The digits are consumed by Bluetooth
+   pairing and should not appear in Notepad or another PC application.
 5. Wait for the keyboard to finish pairing. One short LED pulse on the Pico
    every two seconds means the keyboard is ready and the mouse is still absent.
 6. Put only the separate BLE mouse into its documented pairing mode. Do not use
@@ -55,7 +58,7 @@ USB.
    than BLE HID and this bridge cannot connect to it.
 7. Wait for the Pico to classify and accept the mouse. A solid Pico LED means
    both devices are ready; two pulses means only the mouse is ready.
-8. If the 120-second window closes before an empty role is enrolled, unplug and
+8. If the 180-second window closes before an empty role is enrolled, unplug and
    reconnect the Pico normally (do not hold BOOTSEL), then repeat only the
    missing device's pairing steps.
 
@@ -101,6 +104,10 @@ the flash-connected BOOTSEL signal while Bluetooth runs on the other core.
 6. Copy the normal
    `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` again.
 7. Put only the intended replacement device into pairing mode during the new
-   120-second empty-role window.
+   180-second empty-role window.
+
+If USB detection is unclear, double-click `RUN-WINDOWS-DIAGNOSTIC.cmd` in the
+`release` folder. It reads only the relevant Windows USB/volume state and saves
+a small report to the Desktop; it does not change drivers or device settings.
 
 Never leave a maintenance image installed for normal use.

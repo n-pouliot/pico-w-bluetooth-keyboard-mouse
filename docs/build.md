@@ -108,7 +108,7 @@ The current integrated Release build reports:
 
 | Image | `text` | `data` | `bss` | UF2 file |
 |---|---:|---:|---:|---:|
-| Normal bridge | 473,592 B | 0 B | 46,072 B | 939,008 B |
+| Normal bridge | 473,664 B | 0 B | 46,072 B | 939,520 B |
 | Clear keyboard | 398,208 B | 0 B | 19,460 B | 788,480 B |
 | Clear mouse | 398,208 B | 0 B | 19,460 B | 788,480 B |
 | Clear all | 397,448 B | 0 B | 19,460 B | 786,944 B |

@@ -4,8 +4,8 @@
 
 **READY FOR HARDWARE TEST under the PRE_HARDWARE_TEST label.**
 
-All available software-only gates pass on fixed-passkey source checkpoint
-`e595ebf`. No physical hardware was available. Pico W boot, BLE peripherals, PC
+All available software-only gates pass on first-run compatibility source
+checkpoint `7d506fc`. No physical hardware was available. Pico W boot, BLE peripherals, PC
 USB enumeration, current, latency, suspend behavior, and Xbox behavior remain
 **NOT TESTED** and cannot be inferred from these results.
 
@@ -32,17 +32,18 @@ This is disclosed rather than treated as a pass.
 
 ## Host logic tests
 
-The native executable has one CTest target, four suites, and 28 named scenario
+The native executable has one CTest target, four suites, and 30 named scenario
 groups:
 
-- 11 HID Report Map/parser/normalizer groups, including malformed and mutated
-  descriptors, keyboard arrays/NKRO, and 8/16-bit mouse movement;
+- 12 HID Report Map/parser/normalizer groups, including malformed and mutated
+  descriptors, keyboard arrays/NKRO, the empirical MX Mechanical descriptor,
+  and 8/16-bit mouse movement;
 - five persistence/CRC/layout/validation groups;
 - six mailbox groups, including per-interface resync, generation/release
   barriers, boot mouse shape, delta chunking, and overflow fail-safe behavior;
-- six BLE policy groups covering callback forms/framing, Appearance, address
+- seven BLE policy groups covering callback forms/framing, Appearance, address
   matching, radio restart/backoff decisions, exact bond-removal authority, and
-  fixed-passkey display-event authorization.
+  fixed-passkey display-event authorization plus the passkey LED prompt.
 
 The mutation group flips every bit in the canonical boot-keyboard descriptor
 and compiles/exercises 5,000 deterministic pseudorandom descriptors up to 255
@@ -80,12 +81,12 @@ warning occurred.
 
 | Packaged file | Bytes | SHA-256 |
 |---|---:|---|
-| `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` | 939,008 | `F9CE11DE126CEF7499795C6B734FD8F159D98933E138C96484FFCE11B9150ACE` |
+| `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` | 939,520 | `FF0EE7D18E4A4F0E420EE7AE4BC2990A069714BBE272E3A277270BA28ED0690F` |
 | `pico_w_clear_keyboard_pairing_MAINTENANCE.uf2` | 788,480 | `7C83902AC8CEE984B2B6E0415232559616EED425F2C6F843ED37E4CABA62D65C` |
 | `pico_w_clear_mouse_pairing_MAINTENANCE.uf2` | 788,480 | `A32CE5B2CE34677EB433381DB319CBCDD8E5387DEF1F3614ED8D2B77610CAE65` |
 | `pico_w_clear_all_pairings_MAINTENANCE.uf2` | 786,944 | `7AC4A193BCF73AB2BE4DCFC97AA8E5C4D9412CC181D1068A69F2233B93D6DC5D` |
 
-The normal ELF reports 473,592 B `text`, 0 B `data`, and 46,072 B `bss`.
+The normal ELF reports 473,664 B `text`, 0 B `data`, and 46,072 B `bss`.
 Keyboard/mouse maintenance ELFs each report 398,208/0/19,460 B; clear-all
 reports 397,448/0/19,460 B.
 

@@ -90,15 +90,16 @@ Deliberate limitations:
 ## First-time enrollment
 
 The normal firmware does not read BOOTSEL at runtime. When either role has no
-saved record, a 120-second enrollment window opens after USB has configured and
+saved record, a 180-second enrollment window opens after USB has configured and
 Bluetooth starts.
 
 1. Test on a PC first, not on the Xbox.
 2. Keep other nearby unpaired HID devices out of pairing mode.
 3. Enroll the keyboard first. For an MX Mechanical using free Easy-Switch slot
-   3, hold key `3` for about three seconds until its LED blinks rapidly, type
-   `739241` on that keyboard, and press Enter. Do not add it in Windows
-   Bluetooth settings: the keyboard is pairing directly with the Pico.
+   3, hold key `3` for about three seconds until its LED blinks rapidly. Wait
+   until the Pico gives three short flashes followed by a pause, then type
+   `739241` on that keyboard and press Enter. Do not add it in Windows Bluetooth
+   settings: the keyboard is pairing directly with the Pico.
 4. Put the intended BLE mouse into pairing mode. The Logitech G502 LIGHTSPEED
    is not a BLE mouse and cannot fill this role; use the separate BLE mouse.
 5. The Pico connects to one candidate at a time, retrieves and validates its
@@ -123,6 +124,7 @@ These patterns are implemented but remain physically unverified:
 | Pattern | Meaning |
 |---|---|
 | Solid | Keyboard and mouse are both ready |
+| Three short flashes, then a pause | Type `739241` on the keyboard and press Enter now |
 | One 100 ms pulse every 2 seconds | Keyboard ready; mouse absent |
 | Two 100 ms pulses every 2 seconds | Mouse ready; keyboard absent |
 | 500 ms on / 500 ms off | Neither role is ready |
@@ -154,7 +156,7 @@ The release directory contains:
 - `pico_w_clear_all_pairings_MAINTENANCE.uf2`.
 
 Verify downloads against `release/SHA256SUMS.txt`. The normal firmware SHA-256
-is `F9CE11DE126CEF7499795C6B734FD8F159D98933E138C96484FFCE11B9150ACE`.
+is `FF0EE7D18E4A4F0E420EE7AE4BC2990A069714BBE272E3A277270BA28ED0690F`.
 
 Use the normal image for first installation. Maintenance images are only for
 deliberately clearing role state and must be followed by reflashing the normal

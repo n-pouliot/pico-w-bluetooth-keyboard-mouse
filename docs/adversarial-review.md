@@ -25,7 +25,7 @@ BTstack metadata residual and two explicit hardware-only evidence boundaries.
 | RT-7 | HIGH | Tracked UF2s/docs belonged to the old single-device baseline. | CLOSED — stale files removed; four clean-build, reproduced, hashed PRE_HARDWARE_TEST/maintenance files packaged. |
 | RT-8 | MEDIUM | Address-resolution start failure blocked later RPA work. | CLOSED — checked start, timeout token, and backoff (`1cb8f15`). |
 | RT-9 | MEDIUM | Corrupt/partially cleared role state could leave an orphan bond. | CLOSED for recovery design — clear-all removes and verifies every database entry; docs require clear-all after interrupted/failed role clear. Physical power-loss test remains open. |
-| RT-10 | MEDIUM | A candidate could authorize after the 120-second deadline. | CLOSED — live deadline checked at confirmation and commit (`1cb8f15`). |
+| RT-10 | MEDIUM | A candidate could authorize after the bounded enrollment deadline (currently 180 seconds). | CLOSED — live deadline checked at confirmation and commit (`1cb8f15`). |
 | RT-11 | MEDIUM | `SET_PROTOCOL` on one USB interface resynced both roles. | CLOSED — per-interface resync (`1cb8f15`). |
 | RT-12 | MEDIUM | BLE stayed active during USB suspend. | SOURCE CLOSED — suspend quiesces BLE and resume restarts it (`1cb8f15`); physical current is NOT TESTED. |
 | RT-13 | MEDIUM | Duplicate input characteristics sharing one Report ID are ambiguous because the pinned HIDS API omits value-handle metadata. | ACCEPTED RESIDUAL — strict framing/length and immediate invalid-input disconnect contain it; compatibility is a hardware gate. |

@@ -105,6 +105,7 @@ The onboard Pico W LED communicates aggregate state:
 - one 100 ms pulse every two seconds: keyboard connected, mouse absent;
 - two 100 ms pulses every two seconds: mouse connected, keyboard absent;
 - 500 ms on/off: neither connected;
+- three 100 ms pulses followed by a pause: enter the fixed keyboard passkey now;
 - 200 ms on/off: a connection, security, or discovery operation is active.
 
 Maintenance firmware uses solid for reported success and a 150 ms blink for reported failure.

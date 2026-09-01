@@ -62,6 +62,6 @@ uncommitted bond is removed. This preserves mouse compatibility without allowing
 a keyboard to silently bypass `739241`.
 
 The fixed value is public and is not treated as a password. The practical
-first-run control is the 120-second enrollment window plus the user's act of
+first-run control is the 180-second enrollment window plus the user's act of
 putting only the intended keyboard or mouse into pairing mode. Physical pairing
 with the MX Mechanical remains a hardware gate.

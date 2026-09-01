@@ -18,7 +18,8 @@ Branch: `main`
 Upstream baseline: `2c6a303d1f172e56b271283af978efdcc483a389`
 (`20260830_7`)
 
-Fixed-passkey release binaries were built from source checkpoint: `e595ebf`
+Release binaries were built from first-run compatibility checkpoint:
+`7d506fc28cb67bf3c629a4656508233419c6bf14`
 
 The final artifact/documentation update is the newest commit on `main` after
 the final push. GitHub reported repository visibility `PRIVATE`; verify local
@@ -34,6 +35,13 @@ and remote synchronization with `git status -sb` before resuming.
   Pico as `DisplayOnly`; no-input/no-output mice continue to use Secure
   Connections Just Works. Numeric Comparison, Pico-input passkey, OOB, and
   legacy pairing are declined.
+- An accepted keyboard passkey request resets the onboard LED to a distinctive
+  three-short-flashes-and-pause prompt, telling the beginner exactly when to
+  type the code. Empty-role enrollment remains bounded but now lasts 180
+  seconds.
+- The empirical MX Mechanical keyboard-interface NKRO descriptor captured via
+  Logi Bolt is a regression fixture and normalizes correctly. Direct BLE map
+  identity/topology remains a hardware gate.
 - Report-map parsing is bounded and translates only a strict supported subset.
 - Cross-core keyboard/mouse mailboxes provide release barriers and overflow
   fail-safe behavior.
@@ -51,12 +59,12 @@ and remote synchronization with `git status -sb` before resuming.
   `C:\Program Files\LLVM\lib\clang\22\lib\windows` to `PATH` so the test
   executable can load `clang_rt.asan_dynamic-x86_64.dll`.
 - Clang static analyzer over host-compatible policy/parser/store/mailbox code:
-  PASS with no diagnostics after checkpoint `e595ebf`.
+  PASS with no diagnostics after checkpoint `7d506fc`.
 - MSVC 19.44 Release with `/W4 /WX /permissive-`: PASS, 1/1 CTest.
 - Pico W Release cross-build with Pico SDK 2.2.0 and Arm GNU 14.2.1: all four
-  targets PASS at checkpoint `e595ebf`.
+  targets PASS at checkpoint `7d506fc`.
 - Two empty-directory same-day release builds produced identical UF2 hashes:
-  normal `F9CE11DE126CEF7499795C6B734FD8F159D98933E138C96484FFCE11B9150ACE`,
+  normal `FF0EE7D18E4A4F0E420EE7AE4BC2990A069714BBE272E3A277270BA28ED0690F`,
   keyboard clear `7C83902AC8CEE984B2B6E0415232559616EED425F2C6F843ED37E4CABA62D65C`,
   mouse clear `A32CE5B2CE34677EB433381DB319CBCDD8E5387DEF1F3614ED8D2B77610CAE65`,
   and clear-all `7AC4A193BCF73AB2BE4DCFC97AA8E5C4D9412CC181D1068A69F2233B93D6DC5D`.
@@ -66,9 +74,9 @@ and remote synchronization with `git status -sb` before resuming.
 Physical BLE interoperability, USB suspend current, Xbox USB acceptance, and
 end-to-end input behavior are **NOT TESTED**.
 
-The normal ELF is 473,592 B `text`, 0 B `data`, and 46,072 B `bss`; its
-`__flash_binary_end` is `0x100729FC`, well below the two 4 KiB BTstack banks
-starting at `0x101FE000` on the 2 MiB board. The normal UF2 is 939,008 B.
+The normal ELF is 473,664 B `text`, 0 B `data`, and 46,072 B `bss`; its binary
+end is `0x10072A44`, well below the two 4 KiB BTstack banks starting at
+`0x101FE000` on the 2 MiB board. The normal UF2 is 939,520 B.
 
 ## Pinned build environment
 
@@ -123,10 +131,15 @@ while mouse Just Works remains accepted.
 
 For the user's first keyboard enrollment: flash the normal UF2 on a Windows PC,
 do not use Windows Bluetooth settings, hold MX Mechanical Easy-Switch `3` for
-about three seconds until rapid blinking, type `739241` on the MX Mechanical,
-and press Enter. Then put only the separate BLE mouse into pairing mode. The
-G502 LIGHTSPEED is not a BLE candidate. If the 120-second window expires,
+about three seconds until rapid blinking, wait for the Pico's repeating
+three-short-flashes-and-pause prompt, type `739241` on the MX Mechanical, and
+press Enter. Then put only the separate BLE mouse into pairing mode. The G502
+LIGHTSPEED is not a BLE candidate. If the 180-second window expires,
 power-cycle the Pico normally without BOOTSEL and retry only the missing role.
+
+The `release` directory now contains `START-HERE.txt` and a double-click
+`RUN-WINDOWS-DIAGNOSTIC.cmd` wrapper. The diagnostic is read-only with respect
+to device state and writes a targeted USB/BOOTSEL report to the user's Desktop.
 
 ## Known residual limitation
 

@@ -23,9 +23,10 @@ if interfaces/endpoints differ from `0/0x81` keyboard and `1/0x82` mouse.
 ## Stage 3 — Keyboard only
 
 Put only the intended BLE keyboard into pairing mode. For the MX Mechanical,
-hold Easy-Switch `3` for about three seconds until it blinks rapidly, type
-`739241` on that keyboard, and press Enter. Do not pair it in Windows settings.
-Expected: the Pico accepts the code and the keyboard-only LED pattern appears.
+hold Easy-Switch `3` for about three seconds until it blinks rapidly. Wait for
+the Pico's repeating three-short-flashes-and-pause prompt, then type `739241` on
+that keyboard and press Enter. Do not pair it in Windows settings. Expected:
+the Pico accepts the code and the keyboard-only LED pattern appears.
 
 Test normal letters, modifiers, arrows, function keys, held keys, six
 simultaneous keys, and release. Power the keyboard off while a harmless key is
