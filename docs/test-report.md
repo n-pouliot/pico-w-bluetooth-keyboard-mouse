@@ -4,9 +4,8 @@
 
 **READY FOR HARDWARE TEST under the PRE_HARDWARE_TEST label.**
 
-All available software-only gates pass on source checkpoint `2b4255c` plus the
-test-only MSVC portability correction in the final documentation/artifact
-commit. No physical hardware was available. Pico W boot, BLE peripherals, PC
+All available software-only gates pass on fixed-passkey source checkpoint
+`e595ebf`. No physical hardware was available. Pico W boot, BLE peripherals, PC
 USB enumeration, current, latency, suspend behavior, and Xbox behavior remain
 **NOT TESTED** and cannot be inferred from these results.
 
@@ -33,7 +32,7 @@ This is disclosed rather than treated as a pass.
 
 ## Host logic tests
 
-The native executable has one CTest target, four suites, and 27 named scenario
+The native executable has one CTest target, four suites, and 28 named scenario
 groups:
 
 - 11 HID Report Map/parser/normalizer groups, including malformed and mutated
@@ -41,8 +40,9 @@ groups:
 - five persistence/CRC/layout/validation groups;
 - six mailbox groups, including per-interface resync, generation/release
   barriers, boot mouse shape, delta chunking, and overflow fail-safe behavior;
-- five BLE policy groups covering callback forms/framing, Appearance, address
-  matching, radio restart/backoff decisions, and exact bond-removal authority.
+- six BLE policy groups covering callback forms/framing, Appearance, address
+  matching, radio restart/backoff decisions, exact bond-removal authority, and
+  fixed-passkey display-event authorization.
 
 The mutation group flips every bit in the canonical boot-keyboard descriptor
 and compiles/exercises 5,000 deterministic pseudorandom descriptors up to 255
@@ -70,7 +70,7 @@ error is not a firmware failure.
 | Empty-directory build B | PASS | Separate directory, same pinned inputs |
 | Same-day reproducibility | PASS — 4/4 UF2 hashes identical | UF2 embeds build date; cross-date equality not claimed |
 | Picotool inspection | PASS | RP2040, `pico_w`, SDK 2.2.0, Release, 2026-09-01 |
-| Stack-usage inspection | PASS for software gate | Largest observed project-owned frame 160 B; explicit 8 KiB Core-1 stack plus 128 B canary |
+| Stack-usage inspection | PASS for software gate | Largest observed project-owned frame 152 B; explicit 8 KiB Core-1 stack plus 128 B canary |
 
 The only warning in clean firmware-build output came from the separately built,
 pinned `picotool` dependency (`%lu` versus host `size_t`). No project source
@@ -80,12 +80,12 @@ warning occurred.
 
 | Packaged file | Bytes | SHA-256 |
 |---|---:|---|
-| `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` | 937,472 | `F8E536B517E6DD82881E52D4A87060EF4EF522FEE5BEE3F692DB04FA6560A819` |
+| `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` | 939,008 | `F9CE11DE126CEF7499795C6B734FD8F159D98933E138C96484FFCE11B9150ACE` |
 | `pico_w_clear_keyboard_pairing_MAINTENANCE.uf2` | 788,480 | `7C83902AC8CEE984B2B6E0415232559616EED425F2C6F843ED37E4CABA62D65C` |
 | `pico_w_clear_mouse_pairing_MAINTENANCE.uf2` | 788,480 | `A32CE5B2CE34677EB433381DB319CBCDD8E5387DEF1F3614ED8D2B77610CAE65` |
 | `pico_w_clear_all_pairings_MAINTENANCE.uf2` | 786,944 | `7AC4A193BCF73AB2BE4DCFC97AA8E5C4D9412CC181D1068A69F2233B93D6DC5D` |
 
-The normal ELF reports 472,616 B `text`, 0 B `data`, and 46,072 B `bss`.
+The normal ELF reports 473,592 B `text`, 0 B `data`, and 46,072 B `bss`.
 Keyboard/mouse maintenance ELFs each report 398,208/0/19,460 B; clear-all
 reports 397,448/0/19,460 B.
 

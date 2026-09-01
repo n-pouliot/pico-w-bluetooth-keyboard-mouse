@@ -34,6 +34,32 @@ barriers or TinyUSB completion-token handling under documented callback
 ordering. Full BTstack controller timing is not host-simulated; physical reset,
 suspend, transfer failure, and disconnect tests remain mandatory.
 
+## Fixed-passkey extension
+
+Checkpoint `7ff708c` changed the Security Manager I/O capability from
+`NoInputNoOutput` to `DisplayOnly`, configured public fixed code `739241`, and
+added an explicit display-event authorization policy. The event is accepted
+only for the current Secure Connections enrollment candidate in the securing
+state and only when the stack reports the exact compiled value. Numeric
+Comparison and Pico-input passkey remain declined. The post-encryption gate
+still requires Secure Connections and a 16-byte key; global MITM is not forced
+because that would exclude no-input/no-output mice.
+
+Focused independent review then found that a peer could omit its MITM request,
+causing BTstack to select Just Works despite `DisplayOnly`. Checkpoint `e595ebf`
+closed that downgrade: the candidate records whether the exact Secure
+Connections passkey-display event occurred, and a keyboard role is committed
+only when that record is true and BTstack's persisted bond is authenticated.
+Saved keyboard bonds also require the authenticated flag; mouse roles continue
+to accept 16-byte Secure Connections Just Works.
+
+The focused reviewer rechecked `e595ebf` against pinned BTstack `501e6d2` and
+returned explicit **APPROVE** with no additional finding.
+
+The final extension passed strict Clang and MSVC host tests, ASan/UBSan, Clang
+static analysis, strict Arm compilation, and two identical clean Pico W builds.
+Actual MX Mechanical association remains part of the physical evidence boundary.
+
 ## Independent build findings
 
 The initial verifier showed static two-interface USB descriptors and same-day

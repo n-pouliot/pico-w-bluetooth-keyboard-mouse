@@ -8,6 +8,11 @@ single-device/dynamic-descriptor firmware. Those results do **not** verify this
 substantially different canonical dual-interface implementation and are not
 carried forward as compatibility claims.
 
+Planned first keyboard: Logitech MX Mechanical, using Easy-Switch slot 3 and
+fixed passkey `739241`. It is a target for the first test, **not a verified
+device**. The Logitech G502 LIGHTSPEED is not a BLE candidate for this bridge;
+the planned mouse is a separate BLE mouse whose exact model is not yet known.
+
 Add a device here only after recording:
 
 - exact manufacturer and model;

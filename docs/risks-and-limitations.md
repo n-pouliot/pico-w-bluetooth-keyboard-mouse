@@ -10,14 +10,14 @@ latency, real peripherals, PC behavior, and Xbox behavior have not been tested.
 
 | Severity | Limitation | Behavior |
 |---|---|---|
-| MEDIUM | Passkey, Numeric Comparison, OOB, and legacy-pairing peripherals are unsupported | Pairing is declined; the other role continues. |
+| MEDIUM | Only displayed fixed-passkey and Just Works association models are supported | Keyboard responder-input pairing uses public code `739241`; Numeric Comparison, Pico-input passkey, OOB, and legacy pairing are declined. |
 | MEDIUM | Exactly one HIDS service instance per peripheral | Multi-HIDS devices are rejected to avoid unsafe shared-store ambiguity. |
 | MEDIUM | USB keyboard is 6KRO | Compatible NKRO input is reduced to six keys; >6 reports ErrorRollOver. |
 | MEDIUM | Consumer/media/system/macro/vendor inputs are not forwarded | Structurally valid unrelated collections are ignored. |
 | MEDIUM | Absolute mice, digitizers, and fields wider than 16 bits are unsupported | Candidate is rejected inertly. |
 | MEDIUM | No BLE keyboard LED output | Caps/Num/Scroll LEDs on the wireless keyboard may not track the host. |
 | MEDIUM | Re-pairing requires maintenance UF2 then normal UF2 | Chosen to avoid runtime BOOTSEL/QSPI access across two cores. |
-| MEDIUM | First-run Just Works has no peer authentication | Keep all unintended devices out of pairing mode. Encryption does not remove MITM risk. |
+| MEDIUM | The keyboard passkey is fixed and mouse Just Works has no peer authentication | The code is public. Keep all unintended devices out of pairing mode; encryption alone does not remove impersonation/MITM risk. |
 | LOW | Experimental VID/PID `CAFE:4008` | Suitable for private testing, not a production USB identity. |
 | LOW | One-second reconnect backoff is fixed | Avoids aggressive loops but may feel slower than a tuned per-device strategy. |
 | LOW | Mouse motion uses bounded 32-bit accumulation | Normal bursts are distance-preserving and chunked; an extreme overflow is a fault, not a lossless guarantee. |
@@ -41,7 +41,7 @@ Names and Appearance are discovery hints only; final classification uses the
 Report Map. Devices may still be incompatible because they:
 
 - are Bluetooth Classic rather than BLE HOGP;
-- require passkey/legacy security;
+- require Numeric Comparison, Pico-input passkey, OOB, or legacy security;
 - expose multiple HIDS services;
 - expose ambiguous duplicate input characteristics for one Report ID;
 - use unsupported or malformed descriptors;

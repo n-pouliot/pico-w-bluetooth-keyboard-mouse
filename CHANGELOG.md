@@ -13,7 +13,10 @@
 - Add cross-core release barriers and TinyUSB completion tracking to prevent
   stale or stuck input after disconnects and failed transfers.
 - Restrict first-run enrollment to a 120-second window and Secure Connections
-  Just Works with 16-byte encryption keys; unknown devices are ignored outside
+  with 16-byte encryption keys; support fixed displayed passkey `739241` for
+  keyboard responder-input pairing and Just Works for no-input/no-output mice.
+  Keyboard authorization requires the passkey event and an authenticated bond,
+  preventing a silent Just Works downgrade. Unknown devices are ignored outside
   an enrollment window.
 - Add host tests for HID parsing/normalization, persistence, cross-core
   mailboxes, malformed input, exhaustive mutation of the canonical boot

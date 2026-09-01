@@ -79,9 +79,11 @@ Deliberate limitations:
 - no absolute mouse/digitizer input;
 - no consumer/media, system-control, macro, or vendor-key forwarding;
 - no keyboard lock-LED output forwarding;
-- no passkey, Numeric Comparison, legacy-pairing, or OOB workflow;
-- Secure Connections Just Works is encrypted and bonded but is not
-  MITM-authenticated;
+- keyboards that use the common host-displays/six-digit-code workflow enter the
+  fixed code `739241` and then press Enter;
+- mice and other no-input/no-output peripherals use Secure Connections Just
+  Works, which is encrypted and bonded but is not MITM-authenticated;
+- no Numeric Comparison, Pico-entered passkey, legacy-pairing, or OOB workflow;
 - a malformed, oversized, mixed keyboard/mouse, or unsupported Report Map is
   rejected rather than guessed.
 
@@ -93,19 +95,26 @@ Bluetooth starts.
 
 1. Test on a PC first, not on the Xbox.
 2. Keep other nearby unpaired HID devices out of pairing mode.
-3. Put the intended keyboard and mouse into BLE pairing mode.
-4. The Pico connects to one candidate at a time, retrieves and validates its
+3. Enroll the keyboard first. For an MX Mechanical using free Easy-Switch slot
+   3, hold key `3` for about three seconds until its LED blinks rapidly, type
+   `739241` on that keyboard, and press Enter. Do not add it in Windows
+   Bluetooth settings: the keyboard is pairing directly with the Pico.
+4. Put the intended BLE mouse into pairing mode. The Logitech G502 LIGHTSPEED
+   is not a BLE mouse and cannot fill this role; use the separate BLE mouse.
+5. The Pico connects to one candidate at a time, retrieves and validates its
    HID Report Map, classifies it from standards-based usages, and stores it only
    in the matching empty role.
-5. If the window expires before an empty role is filled, unplug and reconnect
+6. If the window expires before an empty role is filled, unplug and reconnect
    the Pico to open another bounded window for that still-empty role.
 
 Outside an enrollment window, unknown advertisers are ignored. Saved identities
 must re-encrypt with an existing 16-byte Secure Connections bond; a missing key
 does not silently authorize re-pairing.
 
-Because Just Works has no authenticated display or input channel, user presence
-cannot prove the peer's identity. Put only the intended device in pairing mode.
+The fixed keyboard code is public, not a password. Security depends on the
+bounded enrollment window and putting only the intended device into pairing
+mode. Mouse Just Works pairing has no authenticated display or input channel,
+so user presence cannot prove the mouse's identity.
 
 ## LED meanings
 
@@ -145,7 +154,7 @@ The release directory contains:
 - `pico_w_clear_all_pairings_MAINTENANCE.uf2`.
 
 Verify downloads against `release/SHA256SUMS.txt`. The normal firmware SHA-256
-is `F8E536B517E6DD82881E52D4A87060EF4EF522FEE5BEE3F692DB04FA6560A819`.
+is `F9CE11DE126CEF7499795C6B734FD8F159D98933E138C96484FFCE11B9150ACE`.
 
 Use the normal image for first installation. Maintenance images are only for
 deliberately clearing role state and must be followed by reflashing the normal

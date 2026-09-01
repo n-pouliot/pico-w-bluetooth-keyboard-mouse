@@ -54,8 +54,14 @@ maintenance image completes.
 - During enrollment, keep unrelated nearby HID devices out of pairing mode.
 - The enrollment window lasts 120 seconds after USB configures. Power-cycle the
   Pico W to reopen it for any role that still has no saved authorization.
-- Passkey-entry, Numeric Comparison, legacy pairing, and OOB-only devices are
-  intentionally unsupported.
+- For an MX Mechanical, hold the chosen Easy-Switch key for about three seconds
+  until it blinks rapidly, then type `739241` on that keyboard and press Enter.
+  Do not add it through Windows Bluetooth settings.
+- A short Easy-Switch press only selects a slot; it does not enter pairing mode.
+- If the keyboard code is not accepted, power-cycle the Pico normally to reopen
+  enrollment, hold the Easy-Switch key until rapid blinking, and retry promptly.
+- Numeric Comparison, a passkey that must be entered into the Pico,
+  legacy-pairing, and OOB-only devices are intentionally unsupported.
 
 The firmware rejects unsupported, mixed keyboard/mouse, malformed, and
 oversized HID Report Maps. Rejection is safer than forwarding unknown bytes.

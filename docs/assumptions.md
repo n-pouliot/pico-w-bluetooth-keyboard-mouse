@@ -22,8 +22,8 @@ Labels mean:
 | A normal PC accepts and uses this exact descriptor topology | UNVERIFIED | Requires descriptor capture and functional PC test. |
 | Xbox Series X accepts this exact composite HID device | UNVERIFIED | Microsoft documents USB keyboard/mouse use, but topology and console-version behavior need testing. |
 | A particular Xbox game accepts keyboard and mouse input | UNVERIFIED | Title-specific behavior is outside firmware control. |
-| User keyboard and mouse are BLE HOGP devices with one supported HIDS service and compatible maps | UNVERIFIED | Model numbers were not provided and no peripherals are attached. |
-| Secure Connections Just Works can pair the chosen peripherals | UNVERIFIED | Devices requiring passkey, Numeric Comparison, legacy pairing, or proprietary transports are unsupported. |
+| MX Mechanical and the separate inexpensive mouse are BLE HOGP devices with one supported HIDS service and compatible maps | UNVERIFIED | The MX Mechanical model is known, but neither peripheral is attached; the mouse model remains unspecified. The G502 LIGHTSPEED is not a candidate BLE mouse. |
+| Supported Secure Connections association can pair the chosen peripherals | UNVERIFIED | Host-displayed passkey entry uses fixed code `739241`; no-input/no-output mice use Just Works. Numeric Comparison, Pico-input passkey, legacy pairing, and proprietary transports remain unsupported. |
 | Report compiler rejects malformed/oversized inputs without allocation or overflow | VERIFIED | Host tests, strict compiler diagnostics, and source review. |
 | Disconnect release barriers cannot be displaced by queued state | VERIFIED | Mailbox unit tests cover release priority, stale generations, and completion tokens. |
 | USB transfer completion and failure callbacks behave as expected on RP2040 | DOCUMENTED / UNVERIFIED | Pinned TinyUSB API was inspected; physical endpoint behavior needs hardware. |

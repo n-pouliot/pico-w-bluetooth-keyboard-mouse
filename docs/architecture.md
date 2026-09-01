@@ -81,9 +81,9 @@ Every terminal path calls one idempotent role-release operation: HCI disconnect,
 
 ## Pairing and security
 
-Release 1 uses BLE-only HOGP with `NoInputNoOutput`, bonding, 16-byte keys, and LE Secure Connections. It supports Secure-Connections Just Works during an explicitly armed enrollment window. Just Works is encrypted and bonded but is not MITM-authenticated.
+Release 1 uses BLE-only HOGP with `DisplayOnly`, bonding, 16-byte keys, and LE Secure Connections during an explicitly armed enrollment window. A keyboard that requests the common responder-input association model receives the fixed displayed value `739241`; the user types that value on the keyboard and presses Enter. A no-input/no-output mouse still uses Secure-Connections Just Works. Just Works is encrypted and bonded but is not MITM-authenticated.
 
-Passkey entry/display, Numeric Comparison, OOB, legacy pairing, and fixed passkeys are unsupported. Unexpected association methods are declined; Numeric Comparison is never blindly confirmed. A keyboard that requires the common six-digit passkey flow is therefore an explicit compatibility limitation.
+The passkey is intentionally fixed because the Pico W has no display and the beginner workflow must not require UART wiring. It is public, so the bounded enrollment window and putting only the intended device into pairing mode remain important. Display events are accepted only for the current securing enrollment candidate, only for Secure Connections, and only when the stack's value exactly matches the compiled code. After Report Map classification, a keyboard is committed only if that display event occurred and BTstack stored the bond as authenticated; a keyboard that falls back to Just Works is rejected and its uncommitted bond is removed. Numeric Comparison, passkey input on the Pico, OOB, and legacy pairing are declined.
 
 Normal operation reconnects only identities authorized by role records and ignores unknown HID advertisers. Initial enrollment is opened by first-run state for a bounded interval. Re-pairing is performed with small, separately built maintenance UF2 images that clear keyboard, mouse, or both role records and their matching bond, then require the normal firmware to be reflashed. This is more cumbersome than a runtime button but avoids unsafe QSPI/flash sampling while the other RP2040 core executes BTstack.
 
@@ -124,7 +124,8 @@ The USB interfaces request a 1 ms full-speed polling interval. Once a BLE notifi
 ## Release-1 limitations accepted at Gate 1
 
 - one HIDS service instance per peripheral;
-- Secure-Connections Just Works only; no passkey keyboards;
+- Secure-Connections displayed fixed passkey for keyboard responder-input
+  pairing, plus Just Works for no-input/no-output mice;
 - 6KRO USB keyboard output; consumer/media/system/vendor keys omitted;
 - relative mouse only, five buttons, vertical wheel, horizontal pan;
 - no BLE keyboard LED-output forwarding;

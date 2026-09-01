@@ -108,13 +108,13 @@ The current integrated Release build reports:
 
 | Image | `text` | `data` | `bss` | UF2 file |
 |---|---:|---:|---:|---:|
-| Normal bridge | 472,616 B | 0 B | 46,072 B | 937,472 B |
+| Normal bridge | 473,592 B | 0 B | 46,072 B | 939,008 B |
 | Clear keyboard | 398,208 B | 0 B | 19,460 B | 788,480 B |
 | Clear mouse | 398,208 B | 0 B | 19,460 B | 788,480 B |
 | Clear all | 397,448 B | 0 B | 19,460 B | 786,944 B |
 
 RP2040 provides 2 MiB external flash and 264 KiB SRAM. The normal image uses
-about 22.5% of flash by ELF `text` and 45.0 KiB of static `bss`. The latter
+about 22.6% of flash by ELF `text` and 45.0 KiB of static `bss`. The latter
 includes the explicit 8 KiB Core-1 stack and its 128-byte canary. This leaves
 substantial headroom, although runtime stack high-water marks remain a physical
 test item.

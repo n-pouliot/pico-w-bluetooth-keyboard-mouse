@@ -22,13 +22,18 @@ if interfaces/endpoints differ from `0/0x81` keyboard and `1/0x82` mouse.
 
 ## Stage 3 — Keyboard only
 
-Put only the intended BLE keyboard into pairing mode. Test normal letters,
-modifiers, arrows, function keys, held keys, six simultaneous keys, and release.
-Power the keyboard off while a harmless key is held. Expected: the PC receives
-all-keys-up and the mouse USB interface remains present.
+Put only the intended BLE keyboard into pairing mode. For the MX Mechanical,
+hold Easy-Switch `3` for about three seconds until it blinks rapidly, type
+`739241` on that keyboard, and press Enter. Do not pair it in Windows settings.
+Expected: the Pico accepts the code and the keyboard-only LED pattern appears.
 
-Stop if a key remains stuck, pairing requests a passkey, or unrelated input is
-generated.
+Test normal letters, modifiers, arrows, function keys, held keys, six
+simultaneous keys, and release. Power the keyboard off while a harmless key is
+held. Expected: the PC receives all-keys-up and the mouse USB interface remains
+present.
+
+Stop if the fixed passkey does not complete pairing, a different association
+method appears, a key remains stuck, or unrelated input is generated.
 
 ## Stage 4 — Mouse only
 

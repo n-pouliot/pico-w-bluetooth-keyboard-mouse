@@ -40,18 +40,34 @@ The first empty-role enrollment window lasts 120 seconds after the PC configures
 USB.
 
 1. Keep unrelated nearby keyboards and mice out of pairing mode.
-2. Put only the intended BLE keyboard and BLE mouse into their documented
-   pairing modes.
-3. Wait for the Pico to classify and accept them. It processes candidates one
-   at a time.
-4. A solid LED means both are ready. One short pulse every two seconds means
-   only the keyboard is ready; two pulses means only the mouse is ready.
-5. If the 120-second window closes before an empty role is enrolled, unplug and
-   reconnect the Pico, then put only the missing device into pairing mode.
+2. Do **not** open Windows Bluetooth settings or pair either device to Windows.
+   They must pair directly with the Pico W.
+3. On the MX Mechanical, select the unused Easy-Switch slot `3`, then press and
+   hold key `3` for about three seconds. Release it only when the slot-3 light
+   is blinking rapidly. A short press merely switches slots and is not enough.
+4. While that light is blinking, type `739241` on the MX Mechanical and press
+   Enter. Type it promptly. Those digits are consumed by Bluetooth pairing and
+   should not appear in Notepad or another PC application.
+5. Wait for the keyboard to finish pairing. One short LED pulse on the Pico
+   every two seconds means the keyboard is ready and the mouse is still absent.
+6. Put only the separate BLE mouse into its documented pairing mode. Do not use
+   the G502 LIGHTSPEED: its LIGHTSPEED receiver is proprietary 2.4 GHz rather
+   than BLE HID and this bridge cannot connect to it.
+7. Wait for the Pico to classify and accept the mouse. A solid Pico LED means
+   both devices are ready; two pulses means only the mouse is ready.
+8. If the 120-second window closes before an empty role is enrolled, unplug and
+   reconnect the Pico normally (do not hold BOOTSEL), then repeat only the
+   missing device's pairing steps.
 
-Secure Connections Just Works devices can enroll. A device that requires a
-six-digit passkey, Numeric Comparison, legacy pairing, or a display interaction
-is intentionally unsupported and should be rejected.
+The firmware supports the common keyboard workflow in which the host displays
+a six-digit passkey and the user types it on the keyboard. Because the Pico has
+no screen, this build uses the documented fixed code `739241`. No second
+keyboard, UART adapter, soldering, or display is needed. Secure Connections
+Just Works remains available for mice. Numeric Comparison, a passkey displayed
+by the peripheral for entry into the Pico, legacy pairing, and OOB are rejected.
+
+The fixed code is public and should not be treated as a secret. Keep unrelated
+devices out of pairing mode and use only the bounded enrollment window.
 
 ## If `RPI-RP2` does not appear
 
