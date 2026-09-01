@@ -79,4 +79,8 @@ bool ble_bridge_enrollment_security_allowed(bool candidate_is_keyboard,
                                             bool authenticated,
                                             bool fixed_passkey_displayed);
 
+/* Pure LED policy. A passkey prompt gets a distinctive three-pulse pattern. */
+bool ble_bridge_led_on(bool keyboard_ready, bool mouse_ready, bool busy,
+                       bool passkey_prompt, uint32_t ticks);
+
 #endif

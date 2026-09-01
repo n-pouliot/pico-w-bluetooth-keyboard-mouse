@@ -59,6 +59,25 @@ static const uint8_t nkro_keyboard_map[] = {
     0xc0
 };
 
+/*
+ * Empirical MX Mechanical keyboard-interface descriptor captured through its
+ * Logi Bolt receiver. It is not proof that the BLE Report Map is identical,
+ * but it exercises the model's unusual 128-bit one-key-per-bit input layout.
+ * Source: https://github.com/hrvach/deskhop/issues/47
+ */
+static const uint8_t mx_mechanical_keyboard_map[] = {
+    0x05, 0x01, 0x09, 0x06, 0xa1, 0x01,
+    0x05, 0x07, 0x19, 0xe0, 0x29, 0xe7, 0x15, 0x00, 0x25, 0x01,
+    0x75, 0x01, 0x95, 0x08, 0x81, 0x02,
+    0x95, 0x05, 0x05, 0x08, 0x19, 0x01, 0x29, 0x05, 0x91, 0x02,
+    0x95, 0x01, 0x75, 0x03, 0x91, 0x03,
+    0x95, 0x70, 0x75, 0x01, 0x05, 0x07, 0x19, 0x04, 0x29, 0x73,
+    0x81, 0x02,
+    0x95, 0x05, 0x19, 0x87, 0x29, 0x8b, 0x81, 0x02,
+    0x95, 0x03, 0x19, 0x90, 0x29, 0x92, 0x81, 0x02,
+    0xc0
+};
+
 static const uint8_t consumer_keyboard_map[] = {
     0x05, 0x01, 0x09, 0x06, 0xa1, 0x01,
     0x85, 0x01,
@@ -209,6 +228,48 @@ static int test_nkro_rollover_and_release(void)
     CHECK(hid_report_normalize(&plan, &runtime, 0u, released,
                                ARRAY_LENGTH(released), &output) ==
           HID_NORMALIZE_OK);
+    CHECK(output.data.keyboard.keys[0] == 0u);
+    return 0;
+}
+
+static int test_mx_mechanical_empirical_descriptor(void)
+{
+    hid_report_plan_t plan;
+    hid_report_runtime_t runtime;
+    hid_normalized_report_t output;
+    uint8_t pressed[17] = {0};
+    uint8_t released[17] = {0};
+
+    CHECK(hid_report_compile(mx_mechanical_keyboard_map,
+                             ARRAY_LENGTH(mx_mechanical_keyboard_map),
+                             &plan) == HID_COMPILE_OK);
+    CHECK(plan.role == HID_REPORT_ROLE_KEYBOARD);
+    CHECK(plan.report_count == 1u);
+    CHECK(plan.reports[0].report_id == 0u);
+    CHECK(plan.reports[0].payload_length == 16u);
+
+    /* Prefix byte, modifiers, A, Z, F12, and usage 0x87. */
+    pressed[1] = 0x05u;
+    pressed[2] = 0x01u;
+    pressed[5] = 0x02u;
+    pressed[10] = 0x02u;
+    pressed[16] = 0x01u;
+
+    hid_report_runtime_init(&runtime, &plan);
+    CHECK(hid_report_normalize(&plan, &runtime, 0u, pressed,
+                               ARRAY_LENGTH(pressed), &output) ==
+          HID_NORMALIZE_OK);
+    CHECK(output.data.keyboard.modifier == 0x05u);
+    CHECK(output.data.keyboard.keys[0] == 0x04u);
+    CHECK(output.data.keyboard.keys[1] == 0x1du);
+    CHECK(output.data.keyboard.keys[2] == 0x45u);
+    CHECK(output.data.keyboard.keys[3] == 0x87u);
+    CHECK(output.data.keyboard.keys[4] == 0u);
+
+    CHECK(hid_report_normalize(&plan, &runtime, 0u, released,
+                               ARRAY_LENGTH(released), &output) ==
+          HID_NORMALIZE_OK);
+    CHECK(output.data.keyboard.modifier == 0u);
     CHECK(output.data.keyboard.keys[0] == 0u);
     return 0;
 }
@@ -556,6 +617,7 @@ int test_hid_report_parser(void)
     CHECK(test_boot_keyboard_no_id() == 0);
     CHECK(test_split_report_keyboard() == 0);
     CHECK(test_nkro_rollover_and_release() == 0);
+    CHECK(test_mx_mechanical_empirical_descriptor() == 0);
     CHECK(test_consumer_collection_is_ignored() == 0);
     CHECK(test_mouse_reports() == 0);
     CHECK(test_mouse_16_bit_motion_and_pan() == 0);

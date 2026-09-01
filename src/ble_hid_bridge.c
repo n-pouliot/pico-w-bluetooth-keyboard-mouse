@@ -28,7 +28,8 @@
 
 #define DEVICE_CONTEXT_COUNT 2u
 #define SHARED_REPORT_MAP_STORAGE_SIZE 4096u
-#define ENROLLMENT_WINDOW_MS 120000u
+#define ENROLLMENT_WINDOW_SECONDS 180u
+#define ENROLLMENT_WINDOW_MS (ENROLLMENT_WINDOW_SECONDS * 1000u)
 #define CONNECT_TIMEOUT_MS 10000u
 #define SECURITY_TIMEOUT_MS 30000u
 #define DISCOVERY_TIMEOUT_MS 45000u
@@ -1275,7 +1276,10 @@ static void led_timeout(btstack_timer_source_t *timer) {
     bool keyboard_ready = false;
     bool mouse_ready = false;
     bool busy = active_operation >= 0;
+    bool passkey_prompt = false;
     for (unsigned int i = 0; i < DEVICE_CONTEXT_COUNT; ++i) {
+        passkey_prompt |= devices[i].state == DEVICE_SECURING &&
+                          devices[i].fixed_passkey_displayed;
         if (devices[i].state != DEVICE_READY) {
             continue;
         }
@@ -1283,19 +1287,8 @@ static void led_timeout(btstack_timer_source_t *timer) {
         mouse_ready |= devices[i].role == HID_REPORT_ROLE_MOUSE;
     }
 
-    bool on;
-    if (keyboard_ready && mouse_ready) {
-        on = true;
-    } else if (busy) {
-        on = (led_ticks % 4u) < 2u;
-    } else if (keyboard_ready) {
-        on = (led_ticks % 20u) == 0u;
-    } else if (mouse_ready) {
-        const uint32_t phase = led_ticks % 20u;
-        on = (phase == 0u) || (phase == 2u);
-    } else {
-        on = (led_ticks % 10u) < 5u;
-    }
+    const bool on = ble_bridge_led_on(keyboard_ready, mouse_ready, busy,
+                                      passkey_prompt, led_ticks);
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, on);
     led_ticks++;
     btstack_run_loop_set_timer(timer, LED_TICK_MS);
@@ -1434,7 +1427,8 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
             enrollment_open = enrollment_needed &&
                               !deadline_reached(now, enrollment_deadline_ms);
             if (enrollment_open) {
-                BLE_LOG("First-run enrollment open for 120 seconds; put only intended devices in pairing mode\n");
+                BLE_LOG("First-run enrollment open for %u seconds; put only intended devices in pairing mode\n",
+                        (unsigned int)ENROLLMENT_WINDOW_SECONDS);
                 schedule_manager(MANAGER_RETRY_MS);
             }
             drive_connection_manager();
@@ -1535,6 +1529,8 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel,
                         packet) != 0u,
                     sm_event_passkey_display_number_get_passkey(packet))) {
                 context->fixed_passkey_displayed = true;
+                /* Start the visible three-pulse prompt immediately. */
+                led_ticks = 0u;
                 BLE_LOG("Passkey pairing for %s: type %06" PRIu32
                         " on the keyboard, then press Enter\n",
                         role_name(context->role),

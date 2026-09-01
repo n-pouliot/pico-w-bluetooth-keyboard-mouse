@@ -207,3 +207,26 @@ bool ble_bridge_enrollment_security_allowed(bool candidate_is_keyboard,
            (!candidate_is_keyboard ||
             (authenticated && fixed_passkey_displayed));
 }
+
+bool ble_bridge_led_on(bool keyboard_ready, bool mouse_ready, bool busy,
+                       bool passkey_prompt, uint32_t ticks)
+{
+    if (keyboard_ready && mouse_ready) {
+        return true;
+    }
+    if (passkey_prompt) {
+        const uint32_t phase = ticks % UINT32_C(20);
+        return phase == 0u || phase == 2u || phase == 4u;
+    }
+    if (busy) {
+        return (ticks % UINT32_C(4)) < UINT32_C(2);
+    }
+    if (keyboard_ready) {
+        return (ticks % UINT32_C(20)) == 0u;
+    }
+    if (mouse_ready) {
+        const uint32_t phase = ticks % UINT32_C(20);
+        return phase == 0u || phase == 2u;
+    }
+    return (ticks % UINT32_C(10)) < UINT32_C(5);
+}

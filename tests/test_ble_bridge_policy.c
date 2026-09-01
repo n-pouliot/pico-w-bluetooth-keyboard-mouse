@@ -135,6 +135,25 @@ static int test_fixed_passkey_policy(void) {
     return 0;
 }
 
+static int test_led_policy(void) {
+    uint32_t tick;
+
+    for (tick = 0u; tick < 20u; ++tick) {
+        CHECK(ble_bridge_led_on(true, true, true, true, tick));
+        CHECK(ble_bridge_led_on(false, false, true, false, tick) ==
+              ((tick % 4u) < 2u));
+        CHECK(ble_bridge_led_on(true, false, false, false, tick) ==
+              (tick == 0u));
+        CHECK(ble_bridge_led_on(false, true, false, false, tick) ==
+              (tick == 0u || tick == 2u));
+        CHECK(ble_bridge_led_on(false, false, false, false, tick) ==
+              ((tick % 10u) < 5u));
+        CHECK(ble_bridge_led_on(false, false, true, true, tick) ==
+              (tick == 0u || tick == 2u || tick == 4u));
+    }
+    return 0;
+}
+
 int test_ble_bridge_policy(void) {
     CHECK(test_callback_forms_and_frames() == 0);
     CHECK(test_advertisement_appearance_policy() == 0);
@@ -142,5 +161,6 @@ int test_ble_bridge_policy(void) {
     CHECK(test_radio_restart_policy() == 0);
     CHECK(test_exact_bond_removal_policy() == 0);
     CHECK(test_fixed_passkey_policy() == 0);
+    CHECK(test_led_policy() == 0);
     return 0;
 }
