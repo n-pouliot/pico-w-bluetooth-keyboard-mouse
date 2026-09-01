@@ -36,22 +36,23 @@ set(UART_BAUD_RATE 115200 CACHE STRING "Baud rate of the log UART")
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-project(picow_ble_usb_hid_bridge C CXX ASM)
+project(xbox_pico C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 # Add executable.  
-add_executable(picow_ble_usb_hid_bridge
+add_executable(xbox_pico
     main.c
     usb_descriptors.c
     bridge_mailbox.c
-    hog_host_demo.c
+    ble_hid_bridge.c
+    hid_report_parser.c
+    pairing_store.c
     bt_example_common.c
-    Common.c
     )  
 
-target_compile_options(picow_ble_usb_hid_bridge PRIVATE
+target_compile_options(xbox_pico PRIVATE
     -Wall
     -Wextra
     -Wpedantic
@@ -63,9 +64,12 @@ set_source_files_properties(
     main.c
     usb_descriptors.c
     bridge_mailbox.c
+    ble_hid_bridge.c
+    hid_report_parser.c
+    pairing_store.c
     PROPERTIES COMPILE_OPTIONS "-Werror"
     )
-target_link_libraries(picow_ble_usb_hid_bridge
+target_link_libraries(xbox_pico
     pico_stdlib
     pico_multicore
     pico_flash # flash_safe_execute_core_init(), used in main()
@@ -78,10 +82,10 @@ target_link_libraries(picow_ble_usb_hid_bridge
     pico_btstack_flash_bank
     pico_cyw43_arch_threadsafe_background
     )   
-target_include_directories(picow_ble_usb_hid_bridge PRIVATE
+target_include_directories(xbox_pico PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     )
-target_compile_definitions(picow_ble_usb_hid_bridge PRIVATE 
+target_compile_definitions(xbox_pico PRIVATE
     CYW43_LWIP=0
     PICO_DEFAULT_UART_BAUD_RATE=${UART_BAUD_RATE}
     )    
@@ -97,13 +101,47 @@ if(ENABLE_HEARTBEAT_LOGS)
     )
 endif()    
     
-pico_btstack_make_gatt_header(picow_ble_usb_hid_bridge PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR}/hog_host_demo.gatt
+pico_btstack_make_gatt_header(xbox_pico PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/bridge.gatt
     )
 
 # disable usb output, enable uart output
-pico_enable_stdio_usb(picow_ble_usb_hid_bridge 0)
-pico_enable_stdio_uart(picow_ble_usb_hid_bridge 1)
+pico_enable_stdio_usb(xbox_pico 0)
+pico_enable_stdio_uart(xbox_pico 1)
 
 # create map/bin/hex/uf2 file etc.
-pico_add_extra_outputs(picow_ble_usb_hid_bridge)
+pico_add_extra_outputs(xbox_pico)
+
+function(add_pairing_clear_target target_name clear_mask)
+    add_executable(${target_name}
+        maintenance_clear.c
+        pairing_store.c
+        bt_example_common.c
+        )
+    target_compile_options(${target_name} PRIVATE -Wall -Wextra -Wpedantic)
+    set_source_files_properties(
+        maintenance_clear.c
+        pairing_store.c
+        PROPERTIES COMPILE_OPTIONS "-Werror"
+        )
+    target_compile_definitions(${target_name} PRIVATE
+        CLEAR_ROLE_MASK=${clear_mask}
+        CYW43_LWIP=0
+        PICO_DEFAULT_UART_BAUD_RATE=${UART_BAUD_RATE}
+        )
+    target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(${target_name}
+        pico_stdlib
+        pico_btstack_ble
+        pico_btstack_cyw43
+        pico_btstack_flash_bank
+        pico_cyw43_arch_threadsafe_background
+        )
+    pico_enable_stdio_usb(${target_name} 0)
+    pico_enable_stdio_uart(${target_name} 1)
+    pico_add_extra_outputs(${target_name})
+endfunction()
+
+add_pairing_clear_target(xbox_pico_clear_keyboard 1)
+add_pairing_clear_target(xbox_pico_clear_mouse 2)
+add_pairing_clear_target(xbox_pico_clear_all 3)

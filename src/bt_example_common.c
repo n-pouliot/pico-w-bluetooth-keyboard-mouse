@@ -9,7 +9,7 @@
 #include "pico/cyw43_arch.h"
 #include "pico/stdlib.h"
 #include "btstack.h"
-#include "Common.h"
+#include "bridge_log.h"
 
 // Start the btstack example
 int btstack_main(int argc, const char * argv[]);

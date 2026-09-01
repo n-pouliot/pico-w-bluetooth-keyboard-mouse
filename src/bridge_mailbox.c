@@ -55,6 +55,11 @@ static int8_t next_usb_delta(int32_t value) {
     return (int8_t)value;
 }
 
+static uint32_t next_generation(uint32_t generation) {
+    generation++;
+    return generation == 0u ? 1u : generation;
+}
+
 static void schedule_keyboard_release(void) {
     keyboard_mailbox.release_sequence++;
     keyboard_mailbox.release_pending = true;
@@ -81,14 +86,15 @@ uint32_t bridge_role_activate(bridge_role_t role) {
 
     critical_section_enter_blocking(&mailbox_lock);
     if (role == BRIDGE_ROLE_KEYBOARD) {
-        keyboard_mailbox.generation++;
+        keyboard_mailbox.generation =
+            next_generation(keyboard_mailbox.generation);
         generation = keyboard_mailbox.generation;
         memset(&keyboard_mailbox.state, 0, sizeof(keyboard_mailbox.state));
         keyboard_mailbox.state_dirty = false;
         keyboard_mailbox.sequence++;
         schedule_keyboard_release();
     } else if (role == BRIDGE_ROLE_MOUSE) {
-        mouse_mailbox.generation++;
+        mouse_mailbox.generation = next_generation(mouse_mailbox.generation);
         generation = mouse_mailbox.generation;
         mouse_mailbox.x = 0;
         mouse_mailbox.y = 0;
@@ -107,13 +113,14 @@ uint32_t bridge_role_activate(bridge_role_t role) {
 void bridge_role_release(bridge_role_t role, uint32_t generation) {
     critical_section_enter_blocking(&mailbox_lock);
     if ((role == BRIDGE_ROLE_KEYBOARD) && (keyboard_mailbox.generation == generation)) {
-        keyboard_mailbox.generation++;
+        keyboard_mailbox.generation =
+            next_generation(keyboard_mailbox.generation);
         memset(&keyboard_mailbox.state, 0, sizeof(keyboard_mailbox.state));
         keyboard_mailbox.state_dirty = false;
         keyboard_mailbox.sequence++;
         schedule_keyboard_release();
     } else if ((role == BRIDGE_ROLE_MOUSE) && (mouse_mailbox.generation == generation)) {
-        mouse_mailbox.generation++;
+        mouse_mailbox.generation = next_generation(mouse_mailbox.generation);
         mouse_mailbox.x = 0;
         mouse_mailbox.y = 0;
         mouse_mailbox.wheel = 0;
@@ -133,7 +140,7 @@ bool bridge_keyboard_publish(uint32_t generation, const bridge_keyboard_report_t
 
     bool accepted = false;
     critical_section_enter_blocking(&mailbox_lock);
-    if (keyboard_mailbox.generation == generation) {
+    if ((generation != 0u) && (keyboard_mailbox.generation == generation)) {
         accepted = true;
         if (memcmp(&keyboard_mailbox.state, report, sizeof(*report)) != 0) {
             keyboard_mailbox.state = *report;
@@ -149,7 +156,7 @@ bool bridge_mouse_publish(uint32_t generation, uint8_t buttons,
                           int32_t x, int32_t y, int32_t wheel, int32_t pan) {
     bool accepted = false;
     critical_section_enter_blocking(&mailbox_lock);
-    if (mouse_mailbox.generation == generation) {
+    if ((generation != 0u) && (mouse_mailbox.generation == generation)) {
         accepted = true;
         const bool changed = (mouse_mailbox.buttons != buttons) ||
                              (x != 0) || (y != 0) || (wheel != 0) || (pan != 0);

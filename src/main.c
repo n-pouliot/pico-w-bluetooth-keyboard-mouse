@@ -21,14 +21,10 @@
 #include "pico/stdlib.h"
 
 #include "bridge_mailbox.h"
-#include "Common.h"
+#include "bridge_log.h"
 #include "usb_descriptors.h"
 
 extern void ble_host_main(void);
-
-// Temporary compatibility symbol until the singleton Bluetooth source is
-// replaced. The static USB architecture intentionally ignores this flag.
-volatile bool g_usb_reinit_request = false;
 
 static bool ble_started;
 static bool keyboard_in_flight;
@@ -48,7 +44,6 @@ int main(void) {
     }
 
     stdio_init_all();
-    CMN_Init();
     bridge_mailbox_init();
 
     // Core 1 owns BTstack TLV flash writes; initialize the other core for the
