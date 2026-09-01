@@ -52,14 +52,9 @@ add_executable(xbox_pico
     bt_example_common.c
     )  
 
-target_compile_options(xbox_pico PRIVATE
-    -Wall
-    -Wextra
-    -Wpedantic
-    )
-
-# Treat warnings in project-owned USB/mailbox code as errors without imposing
-# that policy on the pinned SDK and third-party sources compiled into the target.
+# Apply strict warnings to project-owned translation units. Pico SDK, BTstack,
+# and TinyUSB are compiled into the same final target, so target-wide warning
+# flags would misleadingly report warnings in pinned third-party sources.
 set_source_files_properties(
     main.c
     usb_descriptors.c
@@ -67,7 +62,8 @@ set_source_files_properties(
     ble_hid_bridge.c
     hid_report_parser.c
     pairing_store.c
-    PROPERTIES COMPILE_OPTIONS "-Werror"
+    bt_example_common.c
+    PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra;-Wpedantic;-Werror"
     )
 target_link_libraries(xbox_pico
     pico_stdlib
@@ -118,11 +114,11 @@ function(add_pairing_clear_target target_name clear_mask)
         pairing_store.c
         bt_example_common.c
         )
-    target_compile_options(${target_name} PRIVATE -Wall -Wextra -Wpedantic)
     set_source_files_properties(
         maintenance_clear.c
         pairing_store.c
-        PROPERTIES COMPILE_OPTIONS "-Werror"
+        bt_example_common.c
+        PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra;-Wpedantic;-Werror"
         )
     target_compile_definitions(${target_name} PRIVATE
         CLEAR_ROLE_MASK=${clear_mask}
