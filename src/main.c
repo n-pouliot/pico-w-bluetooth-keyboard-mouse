@@ -1,247 +1,226 @@
 /*
- * The MIT License (MIT)
- *
- * Copyright (c) 2019 Ha Thach (tinyusb.org)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *
+ * USB/core-0 entry point for the dual BLE HID bridge.
+ * TinyUSB-derived callback structure is used under TinyUSB's MIT license.
  */
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
 #include "bsp/board_api.h"
 #include "tusb.h"
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+#include "pico/flash.h"
+#include "pico/multicore.h"
+#include "pico/stdlib.h"
+
+#include "bridge_mailbox.h"
 #include "Common.h"
-
-//--------------------------------------------------------------------+
-// MACROS
-//--------------------------------------------------------------------+
-#define USB_REINIT_STABILIZATION_DELAY 100 // ms
-#define HEARTBEAT_INTERVAL 5000 // ms
-
-//--------------------------------------------------------------------+
-// GLOBAL VARIABLES
-//--------------------------------------------------------------------+
-volatile bool g_usb_reinit_request = false; // Flag to request USB re-initialization when BLE HID connection is established
-
-//--------------------------------------------------------------------+
-// FUNCTION PROTOTYPES
-//--------------------------------------------------------------------+
-void usb_dev_main(void);
-void hid_task(void);
-bool send_hid_report(void);
+#include "usb_descriptors.h"
 
 extern void ble_host_main(void);
 
-/*------------- MAIN -------------*/
-int main(void)
-{
-    board_init();  
+// Temporary compatibility symbol until the singleton Bluetooth source is
+// replaced. The static USB architecture intentionally ignores this flag.
+volatile bool g_usb_reinit_request = false;
 
-    // init device stack on configured roothub port
+static bool ble_started;
+static bool keyboard_in_flight;
+static bool mouse_in_flight;
+static bridge_keyboard_tx_t keyboard_tx;
+static bridge_mouse_tx_t mouse_tx;
+
+static void usb_task(void);
+static void send_keyboard_report(void);
+static void send_mouse_report(void);
+
+int main(void) {
+    board_init();
     tud_init(BOARD_TUD_RHPORT);
-
-    if (board_init_after_tusb) {
+    if (board_init_after_tusb != NULL) {
         board_init_after_tusb();
-    }      
-    
+    }
+
     stdio_init_all();
     CMN_Init();
+    bridge_mailbox_init();
 
-    SYS_LOG("BLE to USB HID bridge starting\n");
-
-    // Initialize to lock out CPU Core 0 when btstack writes to flash memory on CPU Core 1
+    // Core 1 owns BTstack TLV flash writes; initialize the other core for the
+    // Pico SDK's flash-safe multicore lockout protocol before launching it.
     flash_safe_execute_core_init();
 
-    SYS_LOG("Launching the BLE host on Core 1\n");
-    multicore_launch_core1(ble_host_main);
-
-    usb_dev_main();
-
-    return 0;
-}
-
-//--------------------------------------------------------------------+
-// Main loop for the USB device (runs on Core0).
-//--------------------------------------------------------------------+
-// This function loops indefinitely, handling USB events and HID tasks.
-// It also handles USB re-initialization requests from Core1.
-void usb_dev_main(void)
-{
-    SYS_LOG("Entering the USB device main loop on Core 0\n");
-
-    while (1)
-    {
-#ifdef ENABLE_HEARTBEAT_LOGS
-        // Periodic proof that Core 0 is still servicing its main loop.
-        static uint32_t last_heartbeat = 0;
-        if (board_millis() - last_heartbeat >= HEARTBEAT_INTERVAL) {
-            last_heartbeat = board_millis();
-            SYS_LOG("Heartbeat (Core 0 running)\n");
-        }
-#endif
-
-        // Handle USB re-initialization request from Core1 (BLE host) without blocking
-        static enum {
-            USB_REINIT_IDLE = 0,
-            USB_REINIT_WAIT_STABILIZATION
-        } usb_reinit_state = USB_REINIT_IDLE;
-        static uint32_t usb_reinit_start_ms = 0;
-
-        if (g_usb_reinit_request) {
-            g_usb_reinit_request = false;
-            USB_LOG("Re-initialization requested by the BLE host\n");
-            if (usb_reinit_state == USB_REINIT_IDLE) {
-                if (tud_mounted()) {
-                    tud_disconnect(); // Disconnect the USB device
-                    usb_reinit_start_ms = board_millis();
-                    usb_reinit_state = USB_REINIT_WAIT_STABILIZATION;
-                } else {
-                    CMN_ClearQueue(CMN_QUE_KIND_HID_RPT);
-                    tud_connect();
-                }
-            }
-        }
-
-        if (usb_reinit_state == USB_REINIT_WAIT_STABILIZATION) {
-            if (board_millis() - usb_reinit_start_ms >= USB_REINIT_STABILIZATION_DELAY) {
-                usb_reinit_state = USB_REINIT_IDLE;
-                // Clear any pending HID reports from the queue before reconnecting.
-                CMN_ClearQueue(CMN_QUE_KIND_HID_RPT);
-                tud_connect();
-            }
-        }
-
-        tud_task();          // Run TinyUSB device task
-        hid_task();          // Run HID report sending task
+    SYS_LOG("Dual BLE HID bridge starting\n");
+    while (true) {
+        usb_task();
     }
 }
 
-//--------------------------------------------------------------------+
-// Device callbacks
-//--------------------------------------------------------------------+
+static void usb_task(void) {
+    tud_task();
 
-// Invoked when device is mounted
-void tud_mount_cb(void)
-{
+    // Avoid bringing up the radio before the USB host has configured the
+    // bus-powered device. Once started, Bluetooth remains independent of later
+    // USB unmount/remount events.
+    if (!ble_started && tud_mounted()) {
+        ble_started = true;
+        SYS_LOG("Launching BLE host on Core 1\n");
+        multicore_launch_core1(ble_host_main);
+    }
+
+    send_keyboard_report();
+    send_mouse_report();
+}
+
+static void send_keyboard_report(void) {
+    if (keyboard_in_flight || !tud_hid_n_ready(USB_HID_INSTANCE_KEYBOARD)) {
+        return;
+    }
+
+    bridge_keyboard_report_t report;
+    bridge_keyboard_tx_t tx;
+    if (!bridge_keyboard_peek(&report, &tx)) {
+        return;
+    }
+
+    if (tud_hid_n_report(USB_HID_INSTANCE_KEYBOARD, 0, &report, sizeof(report))) {
+        keyboard_tx = tx;
+        keyboard_in_flight = true;
+    }
+}
+
+static void send_mouse_report(void) {
+    if (mouse_in_flight || !tud_hid_n_ready(USB_HID_INSTANCE_MOUSE)) {
+        return;
+    }
+
+    const bool boot_protocol =
+        tud_hid_n_get_protocol(USB_HID_INSTANCE_MOUSE) == HID_PROTOCOL_BOOT;
+
+    bridge_mouse_report_t report;
+    bridge_mouse_tx_t tx;
+    if (!bridge_mouse_peek(boot_protocol, &report, &tx)) {
+        return;
+    }
+
+    const uint16_t report_len = boot_protocol ? 3u : (uint16_t)sizeof(report);
+    if (tud_hid_n_report(USB_HID_INSTANCE_MOUSE, 0, &report, report_len)) {
+        mouse_tx = tx;
+        mouse_in_flight = true;
+    }
+}
+
+void tud_mount_cb(void) {
+    keyboard_in_flight = false;
+    mouse_in_flight = false;
+    bridge_mailbox_usb_resync();
     USB_LOG("Device mounted\n");
 }
 
-// Invoked when device is unmounted
-void tud_umount_cb(void)
-{
+void tud_umount_cb(void) {
+    keyboard_in_flight = false;
+    mouse_in_flight = false;
+    bridge_mailbox_usb_resync();
     USB_LOG("Device unmounted\n");
 }
 
-// Invoked when usb bus is suspended
-// remote_wakeup_en : if host allow us  to perform remote wakeup
-// Within 7ms, device must draw an average of current less than 2.5 mA from bus
-void tud_suspend_cb(bool remote_wakeup_en)
-{
-    USB_LOG("Bus suspended (remote wakeup %s)\n", remote_wakeup_en ? "allowed" : "denied");
-    (void) remote_wakeup_en;
+void tud_suspend_cb(bool remote_wakeup_en) {
+    // Remote wake is not advertised and is never signalled by this firmware.
+    (void)remote_wakeup_en;
+    USB_LOG("Bus suspended\n");
 }
 
-// Invoked when usb bus is resumed
-void tud_resume_cb(void)
-{
+void tud_resume_cb(void) {
+    bridge_mailbox_usb_resync();
     USB_LOG("Bus resumed\n");
 }
 
-//--------------------------------------------------------------------+
-// USB HID
-//--------------------------------------------------------------------+
+void tud_hid_report_complete_cb(uint8_t instance, const uint8_t *report,
+                                uint16_t len) {
+    (void)report;
+    (void)len;
 
-// Dequeue and send one HID report from the queue to the USB host.
-// return true if a report was successfully sent, false otherwise.
-bool send_hid_report(void)
-{
-    static ST_HID_RPT stHidRpt; // Change local variable to static to use static memory (data area) instead of stack, preventing stack overflow.
-    bool bRet = false;
-
-    // Peek at the next report in the queue without removing it yet
-    if (CMN_PeekQueue(CMN_QUE_KIND_HID_RPT, &stHidRpt)) {
-        // If the host is suspended, wake it up and exit.
-        // The report will be sent on a subsequent call after the host resumes.
-        if ( tud_suspended()) {
-            tud_remote_wakeup();
-            return bRet;
-        }                 
-        // If the HID interface is ready, try to send the report
-        if (tud_hid_ready()) {
-            // Try to send the report.
-            // The report ID, if the device uses any, is already the first byte of
-            // stHidRpt.report. Passing 0 here tells TinyUSB to send the buffer
-            // verbatim; passing a non-zero ID would prepend a second one and shift
-            // every following byte.
-            if (tud_hid_report(0, stHidRpt.report, stHidRpt.report_len)) {
-                USB_LOG("HID report sent (%u bytes)\n", stHidRpt.report_len);
-                // If sent successfully, remove the report from the queue
-                CMN_AdvanceQueue(CMN_QUE_KIND_HID_RPT);
-                bRet = true;
-            }  
-        }
+    if ((instance == USB_HID_INSTANCE_KEYBOARD) && keyboard_in_flight) {
+        bridge_keyboard_complete(&keyboard_tx);
+        keyboard_in_flight = false;
+    } else if ((instance == USB_HID_INSTANCE_MOUSE) && mouse_in_flight) {
+        bridge_mouse_complete(&mouse_tx);
+        mouse_in_flight = false;
     }
- 
-    return bRet;
 }
 
-//--------------------------------------------------------------------+
-// HID TASK
-//--------------------------------------------------------------------+
-void hid_task(void)
-{
-    // Dequeue and send one HID report.
-    (void)send_hid_report();
+void tud_hid_report_failed_cb(uint8_t instance, hid_report_type_t report_type,
+                              const uint8_t *report, uint16_t xferred_bytes) {
+    (void)report_type;
+    (void)report;
+    (void)xferred_bytes;
+
+    // Do not commit the mailbox token. The report, including a release barrier,
+    // remains pending and will be retried when the endpoint is ready.
+    if (instance == USB_HID_INSTANCE_KEYBOARD) {
+        keyboard_in_flight = false;
+    } else if (instance == USB_HID_INSTANCE_MOUSE) {
+        mouse_in_flight = false;
+    }
 }
 
-// Invoked when sent REPORT successfully to host
-// Application can use this to send the next report
-// Note: For composite reports, report[0] is report ID
-void tud_hid_report_complete_cb(uint8_t instance, uint8_t const* report, uint16_t len)
-{
-    (void) instance;
-    (void) len;
-    (void) report;
-}
+uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id,
+                               hid_report_type_t report_type, uint8_t *buffer,
+                               uint16_t reqlen) {
+    if ((buffer == NULL) || (report_id != 0) ||
+        (report_type != HID_REPORT_TYPE_INPUT)) {
+        return 0;
+    }
 
-// Invoked when received GET_REPORT control request
-// Application must fill buffer report's content and return its length.
-// Return zero will cause the stack to STALL request
-uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t* buffer, uint16_t reqlen)
-{
-    // TODO not Implemented
-    (void) instance;
-    (void) report_id;
-    (void) report_type;
-    (void) buffer;
-    (void) reqlen;
+    if (instance == USB_HID_INSTANCE_KEYBOARD) {
+        bridge_keyboard_report_t report;
+        bridge_keyboard_snapshot(&report);
+        const uint16_t count = reqlen < sizeof(report) ? reqlen : sizeof(report);
+        memcpy(buffer, &report, count);
+        return count;
+    }
+
+    if (instance == USB_HID_INSTANCE_MOUSE) {
+        bridge_mouse_report_t report;
+        bridge_mouse_snapshot(&report);
+        const uint16_t wire_len =
+            tud_hid_n_get_protocol(instance) == HID_PROTOCOL_BOOT ? 3u : sizeof(report);
+        const uint16_t count = reqlen < wire_len ? reqlen : wire_len;
+        memcpy(buffer, &report, count);
+        return count;
+    }
 
     return 0;
 }
 
-// Invoked when received SET_REPORT control request or
-// received data on OUT endpoint ( Report ID = 0, Type = 0 )
-void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const* buffer, uint16_t bufsize)
-{
-    USB_LOG("HID SET_REPORT (id=%u type=%u size=%u)\n", report_id, report_type, bufsize);
-    (void) instance;
-    (void) report_id;
-    (void) report_type;
-    (void) buffer;
-    (void) bufsize;
+void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
+                           hid_report_type_t report_type,
+                           const uint8_t *buffer, uint16_t bufsize) {
+    // The keyboard descriptor contains the standard one-byte lock-LED output
+    // report. Release 1 accepts and safely ignores it; BLE LED forwarding is a
+    // documented limitation.
+    if ((instance == USB_HID_INSTANCE_KEYBOARD) && (report_id == 0) &&
+        (report_type == HID_REPORT_TYPE_OUTPUT) && (buffer != NULL) &&
+        (bufsize >= 1)) {
+        USB_LOG("Keyboard LED output: 0x%02x\n", buffer[0]);
+    }
+}
+
+void tud_hid_set_protocol_cb(uint8_t instance, uint8_t protocol) {
+    (void)instance;
+    (void)protocol;
+    keyboard_in_flight = false;
+    mouse_in_flight = false;
+    bridge_mailbox_usb_resync();
+}
+
+bool tud_hid_set_idle_cb(uint8_t instance, uint8_t idle_rate) {
+    (void)instance;
+    (void)idle_rate;
+    return true;
 }

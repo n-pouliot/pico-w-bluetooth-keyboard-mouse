@@ -23,7 +23,7 @@ if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
-set(PICO_BOARD pico2_w CACHE STRING "Board type")
+set(PICO_BOARD pico_w CACHE STRING "Board type")
 
 # Optional log categories. Both are off by default so a normal build stays quiet.
 option(ENABLE_USB_LOGGING "Log USB device events and HID report traffic" OFF)
@@ -41,20 +41,30 @@ project(picow_ble_usb_hid_bridge C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-add_compile_options(-Wall
-        -Wno-format          # int != int32_t as far as the compiler is concerned because gcc has int32_t as long int
-        -Wno-unused-function # we have some for the docs that aren't called
-        -Wno-maybe-uninitialized
-        )
-
 # Add executable.  
 add_executable(picow_ble_usb_hid_bridge
     main.c
     usb_descriptors.c
+    bridge_mailbox.c
     hog_host_demo.c
     bt_example_common.c
     Common.c
     )  
+
+target_compile_options(picow_ble_usb_hid_bridge PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    )
+
+# Treat warnings in project-owned USB/mailbox code as errors without imposing
+# that policy on the pinned SDK and third-party sources compiled into the target.
+set_source_files_properties(
+    main.c
+    usb_descriptors.c
+    bridge_mailbox.c
+    PROPERTIES COMPILE_OPTIONS "-Werror"
+    )
 target_link_libraries(picow_ble_usb_hid_bridge
     pico_stdlib
     pico_multicore

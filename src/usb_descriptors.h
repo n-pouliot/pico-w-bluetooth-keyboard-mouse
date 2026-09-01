@@ -1,37 +1,26 @@
-/*
- * The MIT License (MIT)
- *
- * Copyright (c) 2019 Ha Thach (tinyusb.org)
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+#ifndef XBOX_PICO_USB_DESCRIPTORS_H
+#define XBOX_PICO_USB_DESCRIPTORS_H
 
-#ifndef USB_DESCRIPTORS_H_
-#define USB_DESCRIPTORS_H_
+#include <stdint.h>
 
-enum
-{
-    REPORT_ID_KEYBOARD = 1,
-    REPORT_ID_MOUSE,
-    REPORT_ID_CONSUMER_CONTROL,
-    REPORT_ID_GAMEPAD,
-    REPORT_ID_COUNT
+enum {
+    USB_HID_INSTANCE_KEYBOARD = 0,
+    USB_HID_INSTANCE_MOUSE,
+    USB_HID_INSTANCE_COUNT,
 };
 
-#endif /* USB_DESCRIPTORS_H_ */
+enum {
+    USB_INTERFACE_KEYBOARD = 0,
+    USB_INTERFACE_MOUSE,
+    USB_INTERFACE_COUNT,
+};
+
+#define USB_ENDPOINT_KEYBOARD_IN 0x81u
+#define USB_ENDPOINT_MOUSE_IN    0x82u
+#define USB_HID_ENDPOINT_SIZE    8u
+
+extern const uint8_t usb_keyboard_report_descriptor[];
+extern const uint8_t usb_mouse_report_descriptor[];
+extern const uint8_t usb_configuration_descriptor[];
+
+#endif
