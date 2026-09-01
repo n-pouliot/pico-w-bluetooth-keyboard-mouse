@@ -197,3 +197,13 @@ bool ble_bridge_passkey_display_allowed(bool context_securing,
     return context_securing && enrollment_current && secure_connection &&
            displayed_passkey == BLE_BRIDGE_PAIRING_PASSKEY;
 }
+
+bool ble_bridge_enrollment_security_allowed(bool candidate_is_keyboard,
+                                            bool secure_bond_ok,
+                                            bool authenticated,
+                                            bool fixed_passkey_displayed)
+{
+    return secure_bond_ok &&
+           (!candidate_is_keyboard ||
+            (authenticated && fixed_passkey_displayed));
+}

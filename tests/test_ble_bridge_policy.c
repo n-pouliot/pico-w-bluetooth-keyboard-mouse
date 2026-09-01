@@ -124,6 +124,14 @@ static int test_fixed_passkey_policy(void) {
         true, true, false, BLE_BRIDGE_PAIRING_PASSKEY));
     CHECK(!ble_bridge_passkey_display_allowed(
         true, true, true, BLE_BRIDGE_PAIRING_PASSKEY + UINT32_C(1)));
+
+    CHECK(ble_bridge_enrollment_security_allowed(true, true, true, true));
+    CHECK(!ble_bridge_enrollment_security_allowed(true, false, true, true));
+    CHECK(!ble_bridge_enrollment_security_allowed(true, true, false, true));
+    CHECK(!ble_bridge_enrollment_security_allowed(true, true, true, false));
+    CHECK(ble_bridge_enrollment_security_allowed(false, true, false, false));
+    CHECK(ble_bridge_enrollment_security_allowed(false, true, true, true));
+    CHECK(!ble_bridge_enrollment_security_allowed(false, false, true, true));
     return 0;
 }
 

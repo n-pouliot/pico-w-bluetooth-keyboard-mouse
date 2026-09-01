@@ -73,4 +73,10 @@ bool ble_bridge_passkey_display_allowed(bool context_securing,
                                         bool secure_connection,
                                         uint32_t displayed_passkey);
 
+/* Prevents a keyboard candidate from downgrading to Just Works. */
+bool ble_bridge_enrollment_security_allowed(bool candidate_is_keyboard,
+                                            bool secure_bond_ok,
+                                            bool authenticated,
+                                            bool fixed_passkey_displayed);
+
 #endif

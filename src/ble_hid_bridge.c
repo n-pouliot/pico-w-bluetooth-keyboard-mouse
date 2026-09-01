@@ -66,6 +66,7 @@ typedef struct {
     hid_report_role_t role;
     bool enrollment;
     bool identity_valid;
+    bool fixed_passkey_displayed;
     bool new_bond_uncommitted;
     bool enrollment_db_snapshot_valid;
     ble_appearance_hint_t appearance_hint;
@@ -337,6 +338,7 @@ static void finish_disconnected(device_context_t *context) {
     context->hids_cid = 0u;
     context->enrollment = false;
     context->identity_valid = false;
+    context->fixed_passkey_displayed = false;
     context->device_db_index = -1;
     context->new_bond_db_index = -1;
     context->enrollment_db_snapshot_valid = false;
@@ -464,15 +466,27 @@ static void discard_uncommitted_bond(device_context_t *context) {
     context->new_bond_db_index = -1;
 }
 
-static bool device_db_security_ok(int index) {
+static bool device_db_security_ok(int index, bool require_authenticated) {
     if (index < 0) {
         return false;
     }
     int key_size = 0;
+    int authenticated = 0;
     int secure_connection = 0;
-    le_device_db_encryption_get(index, NULL, NULL, NULL, &key_size, NULL, NULL,
-                                &secure_connection);
-    return (key_size == 16) && (secure_connection != 0);
+    le_device_db_encryption_get(index, NULL, NULL, NULL, &key_size,
+                                &authenticated, NULL, &secure_connection);
+    return (key_size == 16) && (secure_connection != 0) &&
+           (!require_authenticated || (authenticated != 0));
+}
+
+static bool device_db_authenticated(int index) {
+    if (index < 0) {
+        return false;
+    }
+    int authenticated = 0;
+    le_device_db_encryption_get(index, NULL, NULL, NULL, NULL,
+                                &authenticated, NULL, NULL);
+    return authenticated != 0;
 }
 
 static bool context_security_ok(device_context_t *context) {
@@ -482,7 +496,9 @@ static bool context_security_ok(device_context_t *context) {
     context->device_db_index =
         find_device_db_identity(context->identity_address_type,
                                 context->identity_address);
-    return device_db_security_ok(context->device_db_index);
+    return device_db_security_ok(
+        context->device_db_index,
+        context->role == HID_REPORT_ROLE_KEYBOARD);
 }
 
 static void initialize_device_contexts(void) {
@@ -531,9 +547,10 @@ static void load_saved_role(hid_report_role_t role) {
     saved->device_db_index = find_device_db_identity(
         (bd_addr_type_t)saved->record.address_type,
         saved->record.identity_address);
-    if (!device_db_security_ok(saved->device_db_index)) {
+    if (!device_db_security_ok(
+            saved->device_db_index, role == HID_REPORT_ROLE_KEYBOARD)) {
         context->state = DEVICE_REPAIR_REQUIRED;
-        BLE_LOG("%s role has no valid 16-byte Secure Connections bond\n",
+        BLE_LOG("%s role has no valid Secure Connections security record\n",
                 role_name(role));
         return;
     }
@@ -643,6 +660,7 @@ static void start_connection(device_context_t *context,
     context->connection_handle = HCI_CON_HANDLE_INVALID;
     context->hids_cid = 0u;
     context->attempt_token = allocate_attempt_token();
+    context->fixed_passkey_displayed = false;
     context->new_bond_uncommitted = false;
     context->new_bond_db_index = -1;
     context->enrollment_db_snapshot_valid = false;
@@ -1077,8 +1095,20 @@ static void handle_hids_connected(const uint8_t *packet) {
             disconnect_device(context, "reported role is unavailable");
             return;
         }
-        if (!context_security_ok(context) ||
-            !store_enrolled_role(context, compiled_role)) {
+        const bool secure_bond_ok = context_security_ok(context);
+        const bool authenticated =
+            device_db_authenticated(context->device_db_index);
+        if (!ble_bridge_enrollment_security_allowed(
+                compiled_role == HID_REPORT_ROLE_KEYBOARD, secure_bond_ok,
+                authenticated, context->fixed_passkey_displayed)) {
+            disconnect_device(
+                context,
+                compiled_role == HID_REPORT_ROLE_KEYBOARD
+                    ? "keyboard did not complete authenticated fixed-passkey pairing"
+                    : "mouse bond is not 16-byte LE Secure Connections");
+            return;
+        }
+        if (!store_enrolled_role(context, compiled_role)) {
             disconnect_device(context, "could not verify and commit role record");
             return;
         }
@@ -1504,6 +1534,7 @@ static void sm_packet_handler(uint8_t packet_type, uint16_t channel,
                     sm_event_passkey_display_number_get_secure_connection(
                         packet) != 0u,
                     sm_event_passkey_display_number_get_passkey(packet))) {
+                context->fixed_passkey_displayed = true;
                 BLE_LOG("Passkey pairing for %s: type %06" PRIu32
                         " on the keyboard, then press Enter\n",
                         role_name(context->role),
