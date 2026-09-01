@@ -19,6 +19,12 @@ typedef struct {
     ble_appearance_hint_t appearance;
 } ble_advertisement_policy_t;
 
+typedef enum {
+    BLE_RADIO_ACTION_NONE = 0,
+    BLE_RADIO_ACTION_POWER_OFF,
+    BLE_RADIO_ACTION_POWER_ON,
+} ble_radio_action_t;
+
 /* Parses bounded GAP advertising data. False means structurally malformed. */
 bool ble_bridge_parse_advertisement(const uint8_t *data, size_t length,
                                     ble_advertisement_policy_t *out_policy);
@@ -44,5 +50,18 @@ bool ble_bridge_hids_callback_route_valid(
 /* BTstack event byte one encodes the payload length excluding two-byte header. */
 bool ble_bridge_event_frame_valid(const uint8_t *packet, uint16_t size,
                                   uint16_t minimum_size);
+
+/* Pure transition policy used by the transport timer and host regression tests. */
+ble_radio_action_t ble_bridge_radio_next_action(bool usb_requested,
+                                                bool radio_working,
+                                                bool transition_pending,
+                                                bool restart_required,
+                                                bool retry_ready);
+
+/* Authorizes deletion of one exact, newly occupied candidate bond slot. */
+bool ble_bridge_bond_removal_allowed(
+    bool slot_was_occupied, int expected_index, uint8_t expected_type,
+    const uint8_t expected_address[6], int observed_index,
+    uint8_t observed_type, const uint8_t observed_address[6]);
 
 #endif

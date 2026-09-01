@@ -132,6 +132,8 @@ static uint32_t enrollment_deadline_ms;
 static uint32_t led_ticks;
 static bool radio_working;
 static bool radio_transition_pending;
+static bool radio_restart_required;
+static uint32_t radio_retry_after_ms;
 static bool usb_transport_requested;
 
 static void packet_handler(uint8_t packet_type, uint16_t channel,
@@ -411,43 +413,50 @@ static void discard_uncommitted_bond(device_context_t *context) {
         return;
     }
 
-    const int maximum = le_device_db_max_count();
-    for (int index = 0; index < maximum && index < 32; ++index) {
-        if ((context->device_db_occupied_before &
-             (UINT32_C(1) << (unsigned int)index)) != 0u) {
-            continue;
-        }
+    int candidate_index = -1;
+    bd_addr_type_t candidate_type = BD_ADDR_TYPE_UNKNOWN;
+    bd_addr_t candidate_address;
+    if (context->new_bond_uncommitted) {
+        candidate_index = context->new_bond_db_index;
+        candidate_type = context->new_bond_identity_type;
+        memcpy(candidate_address, context->new_bond_identity,
+               sizeof(candidate_address));
+    } else if (context->identity_valid) {
+        /* Bounded fallback for stacks that omit SM_EVENT_IDENTITY_CREATED. */
+        candidate_index = find_device_db_identity(
+            context->identity_address_type, context->identity_address);
+        candidate_type = context->identity_address_type;
+        memcpy(candidate_address, context->identity_address,
+               sizeof(candidate_address));
+    }
 
+    const int maximum = le_device_db_max_count();
+    if (candidate_index >= 0 && candidate_index < maximum &&
+        candidate_index < 32) {
         int stored_type = BD_ADDR_TYPE_UNKNOWN;
         bd_addr_t stored_address;
-        le_device_db_info(index, &stored_type, stored_address, NULL);
-        if (stored_type == BD_ADDR_TYPE_UNKNOWN) {
-            continue;
-        }
-
-        bool authorized_role = false;
-        for (unsigned int role = 0; role < DEVICE_CONTEXT_COUNT; ++role) {
-            if (saved_roles[role].usable &&
-                address_equal(
-                    (bd_addr_type_t)saved_roles[role].record.address_type,
-                    saved_roles[role].record.identity_address,
-                    (bd_addr_type_t)stored_type, stored_address)) {
-                authorized_role = true;
-                break;
+        le_device_db_info(candidate_index, &stored_type, stored_address, NULL);
+        const bool slot_was_occupied =
+            (context->device_db_occupied_before &
+             (UINT32_C(1) << (unsigned int)candidate_index)) != 0u;
+        if (stored_type != BD_ADDR_TYPE_UNKNOWN &&
+            ble_bridge_bond_removal_allowed(
+                slot_was_occupied, candidate_index, (uint8_t)candidate_type,
+                candidate_address, candidate_index, (uint8_t)stored_type,
+                stored_address)) {
+            BLE_LOG("Removing exact rejected candidate bond at DB index %d\n",
+                    candidate_index);
+            le_device_db_remove(candidate_index);
+            stored_type = BD_ADDR_TYPE_UNKNOWN;
+            le_device_db_info(candidate_index, &stored_type, stored_address,
+                              NULL);
+            if (stored_type != BD_ADDR_TYPE_UNKNOWN) {
+                BLE_LOG("Candidate bond removal verification failed at DB index %d\n",
+                        candidate_index);
             }
-        }
-        if (authorized_role) {
-            continue;
-        }
-
-        BLE_LOG("Removing newly-created rejected candidate bond at DB index %d\n",
-                index);
-        le_device_db_remove(index);
-        stored_type = BD_ADDR_TYPE_UNKNOWN;
-        le_device_db_info(index, &stored_type, stored_address, NULL);
-        if (stored_type != BD_ADDR_TYPE_UNKNOWN) {
-            BLE_LOG("Candidate bond removal verification failed at DB index %d\n",
-                    index);
+        } else if (stored_type != BD_ADDR_TYPE_UNKNOWN) {
+            BLE_LOG("Rejected candidate bond no longer matches DB index %d; preserving slot\n",
+                    candidate_index);
         }
     }
     context->new_bond_uncommitted = false;
@@ -1292,6 +1301,7 @@ static void quiesce_radio(void) {
     if (radio_transition_pending) {
         return;
     }
+    radio_restart_required = true;
     reset_radio_contexts();
     enrollment_open = false;
     radio_transition_pending = true;
@@ -1299,6 +1309,8 @@ static void quiesce_radio(void) {
     const int status = hci_power_control(HCI_POWER_OFF);
     if (status != ERROR_CODE_SUCCESS) {
         radio_transition_pending = false;
+        radio_retry_after_ms =
+            btstack_run_loop_get_time_ms() + RETRY_BACKOFF_MS;
         BLE_LOG("BLE radio power-off request failed, status 0x%02x\n",
                 status);
     }
@@ -1307,14 +1319,19 @@ static void quiesce_radio(void) {
 static void transport_timeout(btstack_timer_source_t *timer) {
     const bool requested =
         __atomic_load_n(&usb_transport_requested, __ATOMIC_ACQUIRE);
-    if (!requested && radio_working && !radio_transition_pending) {
+    const uint32_t now = btstack_run_loop_get_time_ms();
+    const ble_radio_action_t action = ble_bridge_radio_next_action(
+        requested, radio_working, radio_transition_pending,
+        radio_restart_required, deadline_reached(now, radio_retry_after_ms));
+    if (action == BLE_RADIO_ACTION_POWER_OFF) {
         quiesce_radio();
-    } else if (requested && !radio_working && !radio_transition_pending) {
+    } else if (action == BLE_RADIO_ACTION_POWER_ON) {
         radio_transition_pending = true;
-        BLE_LOG("Resuming BLE radio after USB activity\n");
+        BLE_LOG("Starting BLE radio after USB activity\n");
         const int status = hci_power_control(HCI_POWER_ON);
         if (status != ERROR_CODE_SUCCESS) {
             radio_transition_pending = false;
+            radio_retry_after_ms = now + RETRY_BACKOFF_MS;
             BLE_LOG("BLE radio power-on request failed, status 0x%02x\n",
                     status);
         }
@@ -1343,6 +1360,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
             if (btstack_event_state_get_state(packet) == HCI_STATE_OFF) {
                 radio_working = false;
                 radio_transition_pending = false;
+                radio_restart_required = false;
                 reset_radio_contexts();
                 if (__atomic_load_n(&usb_transport_requested,
                                     __ATOMIC_ACQUIRE)) {
@@ -1350,6 +1368,8 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
                     const int status = hci_power_control(HCI_POWER_ON);
                     if (status != ERROR_CODE_SUCCESS) {
                         radio_transition_pending = false;
+                        radio_retry_after_ms =
+                            btstack_run_loop_get_time_ms() + RETRY_BACKOFF_MS;
                         BLE_LOG("BLE radio restart failed, status 0x%02x\n",
                                 status);
                     }
@@ -1361,6 +1381,8 @@ static void packet_handler(uint8_t packet_type, uint16_t channel,
             }
             radio_working = true;
             radio_transition_pending = false;
+            radio_restart_required = false;
+            radio_retry_after_ms = 0u;
             if (!__atomic_load_n(&usb_transport_requested,
                                  __ATOMIC_ACQUIRE)) {
                 quiesce_radio();

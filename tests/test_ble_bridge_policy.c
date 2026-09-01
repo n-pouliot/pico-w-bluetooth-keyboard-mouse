@@ -77,9 +77,44 @@ static int test_address_matching(void) {
     return 0;
 }
 
+static int test_radio_restart_policy(void) {
+    CHECK(ble_bridge_radio_next_action(true, true, false, false, true) ==
+          BLE_RADIO_ACTION_NONE);
+    CHECK(ble_bridge_radio_next_action(false, true, false, false, true) ==
+          BLE_RADIO_ACTION_POWER_OFF);
+    CHECK(ble_bridge_radio_next_action(true, true, false, true, true) ==
+          BLE_RADIO_ACTION_POWER_OFF);
+    CHECK(ble_bridge_radio_next_action(true, false, false, true, true) ==
+          BLE_RADIO_ACTION_POWER_ON);
+    CHECK(ble_bridge_radio_next_action(false, false, false, true, true) ==
+          BLE_RADIO_ACTION_NONE);
+    CHECK(ble_bridge_radio_next_action(true, false, true, true, true) ==
+          BLE_RADIO_ACTION_NONE);
+    CHECK(ble_bridge_radio_next_action(true, false, false, true, false) ==
+          BLE_RADIO_ACTION_NONE);
+    return 0;
+}
+
+static int test_exact_bond_removal_policy(void) {
+    const uint8_t candidate[] = {1u, 2u, 3u, 4u, 5u, 6u};
+    const uint8_t unrelated[] = {1u, 2u, 3u, 4u, 5u, 7u};
+
+    CHECK(ble_bridge_bond_removal_allowed(false, 3, 1u, candidate,
+                                           3, 3u, candidate));
+    CHECK(!ble_bridge_bond_removal_allowed(true, 3, 1u, candidate,
+                                            3, 1u, candidate));
+    CHECK(!ble_bridge_bond_removal_allowed(false, 3, 1u, candidate,
+                                            4, 1u, candidate));
+    CHECK(!ble_bridge_bond_removal_allowed(false, 3, 1u, candidate,
+                                            3, 1u, unrelated));
+    return 0;
+}
+
 int test_ble_bridge_policy(void) {
     CHECK(test_callback_forms_and_frames() == 0);
     CHECK(test_advertisement_appearance_policy() == 0);
     CHECK(test_address_matching() == 0);
+    CHECK(test_radio_restart_policy() == 0);
+    CHECK(test_exact_bond_removal_policy() == 0);
     return 0;
 }

@@ -155,3 +155,32 @@ bool ble_bridge_event_frame_valid(const uint8_t *packet, uint16_t size,
     return packet != NULL && size >= minimum_size && size >= 2u &&
            (uint16_t)((uint16_t)packet[1] + 2u) == size;
 }
+
+ble_radio_action_t ble_bridge_radio_next_action(bool usb_requested,
+                                                bool radio_working,
+                                                bool transition_pending,
+                                                bool restart_required,
+                                                bool retry_ready)
+{
+    if (transition_pending || !retry_ready) {
+        return BLE_RADIO_ACTION_NONE;
+    }
+    if (radio_working && (!usb_requested || restart_required)) {
+        return BLE_RADIO_ACTION_POWER_OFF;
+    }
+    if (!radio_working && usb_requested) {
+        return BLE_RADIO_ACTION_POWER_ON;
+    }
+    return BLE_RADIO_ACTION_NONE;
+}
+
+bool ble_bridge_bond_removal_allowed(
+    bool slot_was_occupied, int expected_index, uint8_t expected_type,
+    const uint8_t expected_address[6], int observed_index,
+    uint8_t observed_type, const uint8_t observed_address[6])
+{
+    return !slot_was_occupied && expected_index >= 0 &&
+           expected_index == observed_index &&
+           ble_bridge_address_matches(expected_type, expected_address,
+                                      observed_type, observed_address);
+}
