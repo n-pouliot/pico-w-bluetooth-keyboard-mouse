@@ -11,9 +11,9 @@ keyboard, and press Enter:
 
 - <https://www.logitech.com/en-sg/setup/mxsetup/keyboard-setup/bluetooth.html>
 
-The intended keyboard is a Logitech MX Mechanical with Easy-Switch channel 3
-available. It has not yet been physically paired with this firmware, so this is
-documented compatibility evidence rather than a test result.
+The intended keyboard is a Logitech MX Mechanical with Easy-Switch channel 3.
+It subsequently paired with this firmware and produced input through the Pico
+on Windows and Xbox.
 
 ## BTstack evidence and selected model
 
@@ -35,15 +35,15 @@ workflows without changing the USB topology.
 
 ## Implementation and security boundary
 
-The bridge uses fixed six-digit value `739241`, `DisplayOnly`, bonding,
-16-byte encryption keys, and Secure Connections. It does not globally require
-MITM authentication because doing so would reject a no-input/no-output mouse.
-The post-encryption authorization gate requires a Secure Connections bond and
-a 16-byte key before any role can be saved. Because BTstack considers I/O
-capabilities only when either peer requests MITM protection, a keyboard could
-otherwise fall back to Just Works. The bridge therefore also requires both the
-fixed display event and BTstack's persisted authenticated flag before committing
-a candidate classified as a keyboard. A mouse does not require authentication.
+The bridge uses fixed six-digit value `739241`, `DisplayOnly`, and bonding. A
+keyboard requires a 16-byte authenticated Secure Connections bond. Because
+BTstack considers I/O capabilities only when either peer requests MITM
+protection, a keyboard could otherwise fall back to Just Works. The bridge
+therefore also requires both the fixed display event and BTstack's persisted
+authenticated flag before committing a candidate classified as a keyboard. A
+mouse does not require authentication and, after the M196 hardware finding,
+accepts the HOGP Level 2 7- to 16-byte encrypted bond baseline without requiring
+the Secure Connections flag.
 
 A passkey-display event is accepted only when all of these are true:
 
@@ -64,4 +64,4 @@ a keyboard to silently bypass `739241`.
 The fixed value is public and is not treated as a password. The practical
 first-run control is the 180-second enrollment window plus the user's act of
 putting only the intended keyboard or mouse into pairing mode. Physical pairing
-with the MX Mechanical remains a hardware gate.
+with the MX Mechanical passed on 2026-09-02.

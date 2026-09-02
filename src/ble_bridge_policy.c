@@ -208,6 +208,19 @@ bool ble_bridge_enrollment_security_allowed(bool candidate_is_keyboard,
             (authenticated && fixed_passkey_displayed));
 }
 
+bool ble_bridge_bond_security_allowed(bool keyboard, int key_size,
+                                      bool authenticated,
+                                      bool secure_connection)
+{
+    if (key_size < 7 || key_size > 16) {
+        return false;
+    }
+    if (!keyboard) {
+        return true;
+    }
+    return key_size == 16 && authenticated && secure_connection;
+}
+
 bool ble_bridge_led_on(bool keyboard_ready, bool mouse_ready, bool busy,
                        bool passkey_prompt, uint32_t ticks)
 {
@@ -229,4 +242,39 @@ bool ble_bridge_led_on(bool keyboard_ready, bool mouse_ready, bool busy,
         return phase == 0u || phase == 2u;
     }
     return (ticks % UINT32_C(10)) < UINT32_C(5);
+}
+
+bool ble_bridge_failure_led_on(ble_failure_stage_t failure_stage,
+                               uint32_t ticks)
+{
+    enum {
+        LEAD_ON_TICKS = 10,
+        LEAD_OFF_TICKS = 5,
+        SHORT_ON_TICKS = 2,
+        SHORT_OFF_TICKS = 2,
+        TAIL_OFF_TICKS = 15,
+    };
+
+    if (failure_stage < BLE_FAILURE_STAGE_CONNECTION ||
+        failure_stage > BLE_FAILURE_STAGE_INTERNAL) {
+        return false;
+    }
+
+    const uint32_t pulse_ticks = SHORT_ON_TICKS + SHORT_OFF_TICKS;
+    const uint32_t cycle_ticks =
+        LEAD_ON_TICKS + LEAD_OFF_TICKS +
+        ((uint32_t)failure_stage * pulse_ticks) + TAIL_OFF_TICKS;
+    uint32_t phase = ticks % cycle_ticks;
+    if (phase < LEAD_ON_TICKS) {
+        return true;
+    }
+    phase -= LEAD_ON_TICKS;
+    if (phase < LEAD_OFF_TICKS) {
+        return false;
+    }
+    phase -= LEAD_OFF_TICKS;
+    if (phase >= (uint32_t)failure_stage * pulse_ticks) {
+        return false;
+    }
+    return (phase % pulse_ticks) < SHORT_ON_TICKS;
 }

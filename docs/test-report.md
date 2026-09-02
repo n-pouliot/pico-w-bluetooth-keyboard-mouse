@@ -4,13 +4,15 @@
 
 **HARDWARE TEST IN PROGRESS under the PRE_HARDWARE_TEST label.**
 
-All available software-only gates pass on first-run compatibility source
-checkpoint `7d506fc`. Physical BOOTSEL flashing and the MX Mechanical
-BLE-to-Pico-to-Windows keyboard path passed on 2026-09-02. Logitech M196 mouse
-enrollment did not complete with the passive-scan artifact; an active-scan
-candidate was then built and awaits retest. Current, latency, suspend behavior,
-full USB descriptor capture, simultaneous input, and Xbox behavior remain
-**NOT TESTED** and cannot be inferred from these results.
+All available software-only gates pass. Physical BOOTSEL flashing, the MX
+Mechanical BLE-to-Pico-to-Windows keyboard path, Logitech M196 mouse input, and
+basic simultaneous input passed on 2026-09-02. The passive-scan build failed to
+enroll the M196; active scanning reached security, diagnostic code 2 isolated
+that stage, and the mouse-specific HOGP Level 2 policy completed pairing.
+Current, latency, suspend behavior, full USB descriptor capture, extended
+simultaneous use, and reconnect stress remain **NOT TESTED**. The user also
+confirmed keyboard input through the Pico on an Xbox, but the exact
+screen/title and Xbox mouse behavior in a supported game remain unrecorded.
 
 ## Environment
 
@@ -69,11 +71,11 @@ error is not a firmware failure.
 |---|---|---|
 | Clang static analyzer | PASS — no diagnostics | Four host-compatible production units: parser, pairing store, mailbox, BLE policy |
 | Project-source compiler warnings | PASS | `-Wall -Wextra -Wpedantic -Werror` on every project-owned Pico C unit |
-| Arm Release build | PASS — 4/4 targets | Original `pico_w` / RP2040, SDK 2.2.0, GCC 14.2.1 |
+| Arm Release build | PASS | All 4 targets passed at the initial checkpoint; changed normal target passed again after M196 policy update |
 | Empty-directory build A | PASS | Python 3.12.10 with PyCryptodome pinned |
 | Empty-directory build B | PASS | Separate directory, same pinned inputs |
-| Same-day reproducibility | PASS — 4/4 UF2 hashes identical | UF2 embeds build date; cross-date equality not claimed |
-| Picotool inspection | PASS | RP2040, `pico_w`, SDK 2.2.0, Release, 2026-09-01 |
+| Same-day reproducibility | PASS — 4/4 initial UF2 hashes identical | Initial checkpoint only; UF2 embeds build date and the M196 follow-up was not rebuilt twice |
+| Picotool inspection | PASS | Current normal: RP2040, `pico_w`, SDK 2.2.0, Release, 2026-09-02 |
 | Stack-usage inspection | PASS for software gate | Largest observed project-owned frame 152 B; explicit 8 KiB Core-1 stack plus 128 B canary |
 
 The only warning in clean firmware-build output came from the separately built,
@@ -84,13 +86,17 @@ warning occurred.
 
 | Packaged file | Bytes | SHA-256 |
 |---|---:|---|
-| `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` | 939,520 | `FF0EE7D18E4A4F0E420EE7AE4BC2990A069714BBE272E3A277270BA28ED0690F` |
+| `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` | 940,032 | `7FA5350C1624AB35790336BA7B0E118A837E3831F66C1D5CA23C2DB2306C3A78` |
 | `pico_w_dual_ble_hid_bridge_M196_ACTIVE_SCAN_TEST.uf2` | 939,520 | `E40CFF334A855924A02FBE1B62E1FE35740F93F7E81F8BBF742448766082383D` |
+| `pico_w_dual_ble_hid_bridge_M196_DIAGNOSTIC.uf2` | 940,032 | `15244EB726DFF6CF5014C345EF4EB9BB79D09AE46105B05F61CD666499CA4E14` |
+| `pico_w_dual_ble_hid_bridge_M196_COMPATIBILITY_TEST.uf2` | 940,032 | `7FA5350C1624AB35790336BA7B0E118A837E3831F66C1D5CA23C2DB2306C3A78` |
 | `pico_w_clear_keyboard_pairing_MAINTENANCE.uf2` | 788,480 | `7C83902AC8CEE984B2B6E0415232559616EED425F2C6F843ED37E4CABA62D65C` |
 | `pico_w_clear_mouse_pairing_MAINTENANCE.uf2` | 788,480 | `A32CE5B2CE34677EB433381DB319CBCDD8E5387DEF1F3614ED8D2B77610CAE65` |
 | `pico_w_clear_all_pairings_MAINTENANCE.uf2` | 786,944 | `7AC4A193BCF73AB2BE4DCFC97AA8E5C4D9412CC181D1068A69F2233B93D6DC5D` |
 
-The normal ELF reports 473,664 B `text`, 0 B `data`, and 46,072 B `bss`.
+The original normal ELF reported 473,664 B `text`, 0 B `data`, and 46,072 B
+`bss`. The current normal/successful compatibility ELF reports
+474,040/0/46,080 B and binary end `0x10072BBC`.
 Keyboard/mouse maintenance ELFs each report 398,208/0/19,460 B; clear-all
 reports 397,448/0/19,460 B.
 
@@ -108,13 +114,13 @@ misrepresented as simulated proof.
 | Pico W boot and LED | PARTIAL PASS — BOOTSEL flash, reboot, and green LED observed |
 | PC USB enumeration and descriptor capture | PARTIAL PASS — keyboard input works through USB; full descriptor capture pending |
 | Real BLE keyboard | PARTIAL PASS — MX Mechanical paired and typed through Pico |
-| Real BLE mouse | FAIL/PENDING RETEST — M196 did not enroll on passive-scan build; active-scan candidate ready |
-| Both BLE links simultaneously | NOT TESTED |
+| Real BLE mouse | PARTIAL PASS — M196 paired and produced cursor input with the compatibility build |
+| Both BLE links simultaneously | PARTIAL PASS — both worked and solid-ready LED was observed; 15-minute stress pending |
 | Disconnect/reconnect and held-input release | NOT TESTED |
 | Flash power-loss and maintenance recovery | NOT TESTED |
 | USB configured/unconfigured/suspend current | NOT TESTED |
 | End-to-end latency | NOT TESTED |
-| Xbox Series X and game behavior | NOT TESTED |
+| Xbox and game behavior | PARTIAL PASS — keyboard input works; dashboard ignored the mouse as expected; supported-game mouse test pending |
 
 Run these in order using `docs/first-hardware-test.md`. Any failed hardware
 stage keeps the PRE_HARDWARE_TEST label and must be recorded rather than hidden.

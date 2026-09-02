@@ -11,18 +11,27 @@ keyboard completed direct BLE pairing after the user entered fixed passkey
 `739241`. Keyboard input reached Windows through the Pico after Windows
 Bluetooth was disconnected, verifying the real BLE-to-Pico-to-USB keyboard
 path. Full key coverage, held-key release, simultaneous mouse operation, and
-Xbox behavior remain unverified.
+broader Xbox/game coverage remain unverified. The user subsequently connected
+the same Pico and keyboard to an Xbox and confirmed keyboard input works there;
+the exact Xbox screen/title was not recorded.
 
-## Logitech M196 mouse (M-R0114) — enrollment failure under investigation
+## Logitech M196 mouse (M-R0114) — partial pass
 
-The mouse entered pairing mode and Windows independently detected it, but the
-passive-scan firmware above did not complete mouse enrollment or produce cursor
-input. Mouse and Pico LED behavior suggested repeated discovery/connection
-activity, but no UART trace or Report Map was captured, so the exact rejected
-stage is unknown. Active-scan candidate
-`pico_w_dual_ble_hid_bridge_M196_ACTIVE_SCAN_TEST.uf2` (SHA-256
-`E40CFF334A855924A02FBE1B62E1FE35740F93F7E81F8BBF742448766082383D`) is built
-and awaits physical retest.
+The passive-scan firmware did not enroll the mouse. Active scanning then
+reached a later stage, and the diagnostic image repeatedly reported security
+failure code 2. The original host policy required 16-byte LE Secure Connections
+for every role, which was narrower than HOGP's mandatory unauthenticated Level
+2 host capability. The compatibility image accepts encrypted bonded mouse
+pairing with a 7- to 16-byte key while retaining the strict keyboard policy.
+
+With `pico_w_dual_ble_hid_bridge_M196_COMPATIBILITY_TEST.uf2` (SHA-256
+`7FA5350C1624AB35790336BA7B0E118A837E3831F66C1D5CA23C2DB2306C3A78`), the
+M196 paired and produced mouse input on Windows. The LED showed two pulses
+while only the mouse was ready, then solid after the saved MX Mechanical
+reconnected; the user confirmed both devices worked. Button/wheel coverage,
+15-minute simultaneous stress, power-cycle reconnect, and Xbox mouse behavior
+inside a supported game remain pending. The Xbox dashboard not reacting to the
+mouse is expected platform behavior, not a failed bridge test.
 
 The starting upstream project listed several devices tested with its own
 single-device/dynamic-descriptor firmware. Those results do **not** verify this

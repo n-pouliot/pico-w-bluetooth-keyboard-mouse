@@ -28,6 +28,17 @@ typedef enum {
     BLE_RADIO_ACTION_POWER_ON,
 } ble_radio_action_t;
 
+/* The numeric value is the number of short pulses shown after a long pulse. */
+typedef enum {
+    BLE_FAILURE_STAGE_NONE = 0,
+    BLE_FAILURE_STAGE_CONNECTION = 1,
+    BLE_FAILURE_STAGE_SECURITY = 2,
+    BLE_FAILURE_STAGE_HIDS_SERVICE = 3,
+    BLE_FAILURE_STAGE_REPORT_MAP = 4,
+    BLE_FAILURE_STAGE_RUNTIME_REPORT = 5,
+    BLE_FAILURE_STAGE_INTERNAL = 6,
+} ble_failure_stage_t;
+
 /* Parses bounded GAP advertising data. False means structurally malformed. */
 bool ble_bridge_parse_advertisement(const uint8_t *data, size_t length,
                                     ble_advertisement_policy_t *out_policy);
@@ -79,8 +90,17 @@ bool ble_bridge_enrollment_security_allowed(bool candidate_is_keyboard,
                                             bool authenticated,
                                             bool fixed_passkey_displayed);
 
+/* HOGP mice accept encrypted Level 2 bonds; keyboards keep the strict policy. */
+bool ble_bridge_bond_security_allowed(bool keyboard, int key_size,
+                                      bool authenticated,
+                                      bool secure_connection);
+
 /* Pure LED policy. A passkey prompt gets a distinctive three-pulse pattern. */
 bool ble_bridge_led_on(bool keyboard_ready, bool mouse_ready, bool busy,
                        bool passkey_prompt, uint32_t ticks);
+
+/* Long green lead-in, then failure_stage short green pulses and a pause. */
+bool ble_bridge_failure_led_on(ble_failure_stage_t failure_stage,
+                               uint32_t ticks);
 
 #endif

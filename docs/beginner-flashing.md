@@ -65,9 +65,11 @@ are charged and within reach.
 The firmware supports the common keyboard workflow in which the host displays
 a six-digit passkey and the user types it on the keyboard. Because the Pico has
 no screen, this build uses the documented fixed code `739241`. No second
-keyboard, UART adapter, soldering, or display is needed. Secure Connections
-Just Works remains available for mice. Numeric Comparison, a passkey displayed
-by the peripheral for entry into the Pico, legacy pairing, and OOB are rejected.
+keyboard, UART adapter, soldering, or display is needed. Encrypted bonded Just
+Works remains available for mice, including legacy fallback for compatibility.
+Numeric Comparison, a passkey displayed by the peripheral for entry into the
+Pico, and OOB are rejected. Keyboards still require authenticated Secure
+Connections.
 
 The fixed code is public and should not be treated as a secret. Keep unrelated
 devices out of pairing mode and use only the bounded enrollment window.
@@ -96,7 +98,7 @@ the flash-connected BOOTSEL signal while Bluetooth runs on the other core.
    - both: `pico_w_clear_all_pairings_MAINTENANCE.uf2`.
 3. Wait for the maintenance program to boot. Solid LED means the clear operation
    reports success; a 150 ms rapid blink reports failure. Both patterns remain
-   physically unverified until the first board test.
+   has not yet been physically tested.
    If power is interrupted or the rapid failure blink appears, run the
    **clear-all** maintenance UF2 next; do not simply rerun the same role image.
 4. Disconnect the Pico.

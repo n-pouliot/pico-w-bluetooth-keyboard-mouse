@@ -2,22 +2,23 @@
 
 ## Release status
 
-The artifact is eligible only for **PRE-HARDWARE TEST** after all software
-review gates pass. Pico W boot, radio behavior, USB enumeration, actual current,
-latency, real peripherals, PC behavior, and Xbox behavior have not been tested.
+The artifact remains **PRE-HARDWARE TEST**. Pico W boot and both intended BLE
+peripherals have partial PC passes, and keyboard input has an Xbox partial pass.
+Complete USB inspection, reconnect/stress, actual current, latency, and Xbox
+mouse/game behavior have not been tested.
 
 ## Accepted compatibility limits
 
 | Severity | Limitation | Behavior |
 |---|---|---|
-| MEDIUM | Only displayed fixed-passkey and Just Works association models are supported | Keyboard responder-input pairing uses public code `739241`; Numeric Comparison, Pico-input passkey, OOB, and legacy pairing are declined. |
+| MEDIUM | Only displayed fixed-passkey and Just Works association models are supported | Keyboard responder-input pairing uses public code `739241`; Numeric Comparison, Pico-input passkey, and OOB are declined. Mouse legacy Just Works fallback is accepted; keyboard legacy pairing is rejected. |
 | MEDIUM | Exactly one HIDS service instance per peripheral | Multi-HIDS devices are rejected to avoid unsafe shared-store ambiguity. |
 | MEDIUM | USB keyboard is 6KRO | Compatible NKRO input is reduced to six keys; >6 reports ErrorRollOver. |
 | MEDIUM | Consumer/media/system/macro/vendor inputs are not forwarded | Structurally valid unrelated collections are ignored. |
 | MEDIUM | Absolute mice, digitizers, and fields wider than 16 bits are unsupported | Candidate is rejected inertly. |
 | MEDIUM | No BLE keyboard LED output | Caps/Num/Scroll LEDs on the wireless keyboard may not track the host. |
 | MEDIUM | Re-pairing requires maintenance UF2 then normal UF2 | Chosen to avoid runtime BOOTSEL/QSPI access across two cores. |
-| MEDIUM | The keyboard passkey is fixed and mouse Just Works has no peer authentication | The code is public. Keep all unintended devices out of pairing mode; encryption alone does not remove impersonation/MITM risk. |
+| MEDIUM | The keyboard passkey is fixed and mouse Just Works has no peer authentication | The code is public. Keep all unintended devices out of pairing mode; mouse legacy fallback and encryption alone do not remove impersonation/MITM risk. |
 | LOW | Experimental VID/PID `CAFE:4008` | Suitable for private testing, not a production USB identity. |
 | LOW | One-second reconnect backoff is fixed | Avoids aggressive loops but may feel slower than a tuned per-device strategy. |
 | LOW | Mouse motion uses bounded 32-bit accumulation | Normal bursts are distance-preserving and chunked; an extreme overflow is a fault, not a lossless guarantee. |
@@ -41,7 +42,8 @@ Names and Appearance are discovery hints only; final classification uses the
 Report Map. Devices may still be incompatible because they:
 
 - are Bluetooth Classic rather than BLE HOGP;
-- require Numeric Comparison, Pico-input passkey, OOB, or legacy security;
+- require Numeric Comparison, Pico-input passkey, or OOB; keyboards that only
+  support legacy security are also rejected;
 - expose multiple HIDS services;
 - expose ambiguous duplicate input characteristics for one Report ID;
 - use unsupported or malformed descriptors;
@@ -49,20 +51,21 @@ Report Map. Devices may still be incompatible because they:
 - rely on output reports, vendor features, or consumer controls;
 - do not advertise while sleeping without a wake action.
 
-## PC USB compatibility — unverified
+## PC USB compatibility — partially verified
 
-The descriptor is fixed and build-time checked, but no operating system has yet
-enumerated it. The first PC test must inspect the full descriptor tree and
-confirm exactly two interfaces and no extra class. Boot protocol mouse omits
-wheel/pan until the host selects report protocol, as required by the boot mouse
-shape.
+Windows accepted keyboard and mouse input through the fixed USB device. A full
+descriptor-tree capture must still confirm exactly two interfaces and no extra
+class. Boot protocol mouse omits wheel/pan until the host selects report
+protocol, as required by the boot mouse shape.
 
-## Xbox compatibility — unverified
+## Xbox compatibility — partially verified
 
-No Xbox was connected. Microsoft documentation supports ordinary keyboard and
-mouse use, but console firmware and individual games may reject or ignore the
-device. The firmware intentionally does not emulate a controller or bypass
-licensed-accessory authentication.
+Keyboard input worked when the user connected the Pico to an Xbox. The Xbox
+dashboard ignored the mouse, which matches Microsoft's documented distinction:
+keyboard navigation works on Xbox, while mouse navigation is limited to select
+games/apps. Exact Xbox software/title details and mouse behavior in a supported
+game remain unrecorded. The firmware intentionally does not emulate a controller
+or bypass licensed-accessory authentication.
 
 ## Persistence and recovery residual risks
 

@@ -52,7 +52,7 @@ separate hardware evidence gaps rather than claimed passes.
 ## Positive controls retained
 
 - fixed USB keyboard and mouse grammar rather than BLE-derived descriptors;
-- strict CRC-protected role records and 16-byte bond checks;
+- strict CRC-protected role records and role-specific bond checks;
 - bounded allocation-free Report Map parsing;
 - generation-tagged cross-core release barriers; and
 - no controller emulation, proprietary console protocol, or runtime storage.

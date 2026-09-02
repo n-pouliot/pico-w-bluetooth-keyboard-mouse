@@ -28,16 +28,32 @@ Upstream baseline: `2c6a303d1f172e56b271283af978efdcc483a389`
 - Logitech M196 (M-R0114) entered pairing mode and Windows could detect it, but
   mouse enrollment did not complete on passive-scan firmware SHA-256
   `FF0EE7D18E4A4F0E420EE7AE4BC2990A069714BBE272E3A277270BA28ED0690F`.
-- A narrow active-scan candidate is packaged as
+- The active-scan candidate
   `release/pico_w_dual_ble_hid_bridge_M196_ACTIVE_SCAN_TEST.uf2`, SHA-256
-  `E40CFF334A855924A02FBE1B62E1FE35740F93F7E81F8BBF742448766082383D`. It
-  requests scan responses but does not alter persistence or pairing security.
-  Physical M196 retest is pending.
-- PC descriptor capture, simultaneous keyboard/mouse use, reconnect stress,
-  and every Xbox test remain pending.
+  `E40CFF334A855924A02FBE1B62E1FE35740F93F7E81F8BBF742448766082383D`, found
+  the mouse but did not enroll it. The diagnostic build then repeatedly showed
+  failure stage 2, proving that security negotiation—not discovery, HIDS, or
+  Report Map parsing—was the blocking stage.
+- The mouse-only security policy was broadened to the mandatory HOGP
+  unauthenticated Level 2 baseline: encrypted bonded Just Works, 7- to 16-byte
+  keys, with legacy fallback accepted. The strict keyboard policy is unchanged.
+- `release/pico_w_dual_ble_hid_bridge_M196_COMPATIBILITY_TEST.uf2`, SHA-256
+  `7FA5350C1624AB35790336BA7B0E118A837E3831F66C1D5CA23C2DB2306C3A78`, then
+  physically paired the M196. Mouse input and keyboard input both worked on
+  Windows. The LED first showed the mouse-only two-pulse state while the saved
+  keyboard reconnected, then became solid, confirming both roles ready.
+- PC descriptor capture, extended simultaneous input, power-cycle reconnect
+  stress, and Xbox mouse behavior in a supported game remain pending. The user
+  connected the Pico with the MX Mechanical to an Xbox and confirmed keyboard
+  input works; the dashboard did not react to the mouse, which is expected
+  because Xbox limits mouse navigation to select games/apps. The exact Xbox
+  screen/title was not recorded, so do not generalize this to every game.
 
-Release binaries were built from first-run compatibility checkpoint:
-`7d506fc28cb67bf3c629a4656508233419c6bf14`
+The original four release binaries were built from first-run compatibility
+checkpoint `7d506fc28cb67bf3c629a4656508233419c6bf14`. The current normal binary was
+rebuilt after active scanning, failure diagnostics, and the M196 mouse-security
+compatibility change; its authoritative hash is recorded below and in
+`release/SHA256SUMS.txt`.
 
 The final artifact/documentation update is the newest commit on `main` after
 the final push. GitHub reported repository visibility `PRIVATE`; verify local
@@ -50,9 +66,16 @@ and remote synchronization with `git status -sb` before resuming.
 - BLE enrollment and reconnect support one keyboard plus one mouse, with
   serialized connection/discovery work and persisted role assignments.
 - Keyboard responder-input pairing uses fixed public passkey `739241` with the
-  Pico as `DisplayOnly`; no-input/no-output mice continue to use Secure
-  Connections Just Works. Numeric Comparison, Pico-input passkey, OOB, and
-  legacy pairing are declined.
+  Pico as `DisplayOnly` and requires an authenticated 16-byte Secure
+  Connections bond. No-input/no-output mice use encrypted bonded Just Works
+  with 7- to 16-byte keys; LE Secure Connections is preferred and legacy
+  fallback is accepted for HOGP Level 2 interoperability. Numeric Comparison,
+  Pico-input passkey, and OOB are declined.
+- Active scanning requests scan responses, improving support for peripherals
+  that omit useful HID identity fields from their initial advertisement.
+- A rejected connection displays a long green lead pulse plus one to six short
+  pulses for 20 seconds: connection, security, HIDS service, Report Map,
+  runtime report, or internal failure respectively.
 - An accepted keyboard passkey request resets the onboard LED to a distinctive
   three-short-flashes-and-pause prompt, telling the beginner exactly when to
   type the code. Empty-role enrollment remains bounded but now lasts 180
@@ -77,11 +100,15 @@ and remote synchronization with `git status -sb` before resuming.
   `C:\Program Files\LLVM\lib\clang\22\lib\windows` to `PATH` so the test
   executable can load `clang_rt.asan_dynamic-x86_64.dll`.
 - Clang static analyzer over host-compatible policy/parser/store/mailbox code:
-  PASS with no diagnostics after checkpoint `7d506fc`.
-- MSVC 19.44 Release with `/W4 /WX /permissive-`: PASS, 1/1 CTest.
+  PASS with no diagnostics at checkpoint `7d506fc`; not rerun after the M196
+  follow-up.
+- MSVC 19.44 Release with `/W4 /WX /permissive-`: PASS, 1/1 CTest at the
+  software-gate checkpoint.
 - Pico W Release cross-build with Pico SDK 2.2.0 and Arm GNU 14.2.1: all four
-  targets PASS at checkpoint `7d506fc`.
-- Two empty-directory same-day release builds produced identical UF2 hashes:
+  targets PASS at checkpoint `7d506fc`. The changed normal target and current
+  Clang ASan/UBSan host test both passed again after the M196 policy change.
+- At the initial software checkpoint, two empty-directory same-day release
+  builds produced identical UF2 hashes:
   normal `FF0EE7D18E4A4F0E420EE7AE4BC2990A069714BBE272E3A277270BA28ED0690F`,
   keyboard clear `7C83902AC8CEE984B2B6E0415232559616EED425F2C6F843ED37E4CABA62D65C`,
   mouse clear `A32CE5B2CE34677EB433381DB319CBCDD8E5387DEF1F3614ED8D2B77610CAE65`,
@@ -90,12 +117,14 @@ and remote synchronization with `git status -sb` before resuming.
   explicit 8 KiB stack plus a 128-byte canary.
 
 MX Mechanical BLE interoperability and end-to-end keyboard input have a partial
-physical pass. M196 mouse interoperability, simultaneous input, USB suspend
-current, and Xbox USB acceptance remain **NOT TESTED or unresolved**.
+physical pass on both Windows and Xbox. M196 interoperability and basic
+simultaneous keyboard/mouse input have passed on Windows. Extended simultaneous
+use, reconnect stress, USB suspend current, and Xbox mouse/game acceptance
+remain **NOT TESTED**.
 
-The normal ELF is 473,664 B `text`, 0 B `data`, and 46,072 B `bss`; its binary
-end is `0x10072A44`, well below the two 4 KiB BTstack banks starting at
-`0x101FE000` on the 2 MiB board. The normal UF2 is 939,520 B.
+The current normal ELF is 474,040 B `text`, 0 B `data`, and 46,080 B `bss`;
+its binary end is `0x10072BBC`, well below the two 4 KiB BTstack banks starting
+at `0x101FE000` on the 2 MiB board. The current normal UF2 is 940,032 B.
 
 ## Pinned build environment
 
@@ -131,7 +160,8 @@ compiler remains Arm GNU because `PICO_COMPILER` is explicitly pinned.
 
 The exact packaged files are in `release/`; `release/SHA256SUMS.txt` is the
 authoritative manifest. The normal image is
-`pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2`.
+`pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2`; it is byte-identical to the
+physically successful `pico_w_dual_ble_hid_bridge_M196_COMPATIBILITY_TEST.uf2`.
 
 ## Continuation checklist
 
@@ -142,8 +172,12 @@ same reviewer then returned explicit `APPROVE`, confirming that keyboard
 candidates now require both passkey-event evidence and an authenticated bond
 while mouse Just Works remains accepted.
 
-1. Follow `docs/first-hardware-test.md` when the board arrives and record every
-   result. Do not promote the release label until the hardware gates pass.
+1. Continue at Stage 4/5 of `docs/first-hardware-test.md`: verify every M196
+   button and wheel action, then exercise both devices together for 15 minutes.
+   Next, perform the ten-second Pico power-cycle reconnect test before trying
+   the mouse inside an Xbox game whose Store listing says `Console Keyboard &
+   Mouse`. Do not use the Xbox dashboard as the mouse test and do not promote
+   the release label until the remaining hardware gates pass.
 2. If any hardware stage fails, preserve the exact firmware hash, device model,
    LED state, PC descriptor capture, and reproduction steps before changing
    code.

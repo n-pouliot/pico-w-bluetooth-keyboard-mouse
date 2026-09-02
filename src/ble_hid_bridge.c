@@ -39,6 +39,7 @@
 #define MANAGER_RETRY_MS 250u
 #define LED_TICK_MS 100u
 #define TRANSPORT_TICK_MS 5u
+#define FAILURE_DISPLAY_MS 20000u
 
 #define BLE_SCAN_TYPE_ACTIVE 1u
 #define BLE_SCAN_INTERVAL_UNITS 48u
@@ -48,6 +49,9 @@
 #define CONN_INTERVAL_MAX_UNITS 12u
 #define CONN_LATENCY_EVENTS 0u
 #define CONN_TIMEOUT_UNITS 300u
+
+#define BLE_COMPAT_MIN_KEY_SIZE 7
+#define BLE_MAX_KEY_SIZE 16
 
 #define TLV_TAG_XHKB ((((uint32_t)'X') << 24) | (((uint32_t)'H') << 16) | \
                       (((uint32_t)'K') << 8) | (uint32_t)'B')
@@ -137,6 +141,9 @@ static bool enrollment_open;
 static bool enrollment_window_started;
 static uint32_t enrollment_deadline_ms;
 static uint32_t led_ticks;
+static ble_failure_stage_t failure_stage;
+static uint32_t failure_led_start_tick;
+static uint32_t failure_display_until_ms;
 static bool radio_working;
 static bool radio_transition_pending;
 static bool radio_restart_required;
@@ -160,6 +167,32 @@ static void led_timeout(btstack_timer_source_t *timer);
 static void transport_timeout(btstack_timer_source_t *timer);
 static void discard_uncommitted_bond(device_context_t *context);
 static void quiesce_radio(void);
+
+static ble_failure_stage_t failure_stage_for_state(device_state_t state) {
+    switch (state) {
+        case DEVICE_CONNECTING:
+        case DEVICE_CONNECT_CANCELING:
+            return BLE_FAILURE_STAGE_CONNECTION;
+        case DEVICE_SECURING:
+            return BLE_FAILURE_STAGE_SECURITY;
+        case DEVICE_PREFLIGHTING_HIDS:
+            return BLE_FAILURE_STAGE_HIDS_SERVICE;
+        case DEVICE_DISCOVERING:
+            return BLE_FAILURE_STAGE_REPORT_MAP;
+        case DEVICE_READY:
+            return BLE_FAILURE_STAGE_RUNTIME_REPORT;
+        default:
+            return BLE_FAILURE_STAGE_INTERNAL;
+    }
+}
+
+static void record_failure(device_state_t state) {
+    failure_stage = failure_stage_for_state(state);
+    failure_led_start_tick = led_ticks;
+    failure_display_until_ms =
+        btstack_run_loop_get_time_ms() + FAILURE_DISPLAY_MS;
+    BLE_LOG("Failure indicator stage %u\n", (unsigned int)failure_stage);
+}
 
 static uint32_t role_tag(hid_report_role_t role) {
     return role == HID_REPORT_ROLE_KEYBOARD ? TLV_TAG_XHKB : TLV_TAG_XHMS;
@@ -351,7 +384,13 @@ static void finish_disconnected(device_context_t *context) {
     context->hids_service_count = 0u;
     context->disconnect_retries = 0u;
     context->state = DEVICE_IDLE;
-    context->retry_after_ms = btstack_run_loop_get_time_ms() + RETRY_BACKOFF_MS;
+    const uint32_t now = btstack_run_loop_get_time_ms();
+    context->retry_after_ms = now + RETRY_BACKOFF_MS;
+    if (failure_stage != BLE_FAILURE_STAGE_NONE &&
+        !deadline_reached(context->retry_after_ms,
+                          failure_display_until_ms)) {
+        context->retry_after_ms = failure_display_until_ms;
+    }
     if ((index >= 0) && (active_operation == index)) {
         active_operation = -1;
     }
@@ -363,6 +402,7 @@ static void disconnect_device(device_context_t *context, const char *reason) {
         return;
     }
     BLE_LOG("Rejecting %s: %s\n", role_name(context->role), reason);
+    record_failure(context->state);
     release_device(context);
     discard_uncommitted_bond(context);
     context->state = DEVICE_DISCONNECTING;
@@ -471,7 +511,7 @@ static void discard_uncommitted_bond(device_context_t *context) {
     context->new_bond_db_index = -1;
 }
 
-static bool device_db_security_ok(int index, bool require_authenticated) {
+static bool device_db_security_ok(int index, hid_report_role_t role) {
     if (index < 0) {
         return false;
     }
@@ -480,8 +520,13 @@ static bool device_db_security_ok(int index, bool require_authenticated) {
     int secure_connection = 0;
     le_device_db_encryption_get(index, NULL, NULL, NULL, &key_size,
                                 &authenticated, NULL, &secure_connection);
-    return (key_size == 16) && (secure_connection != 0) &&
-           (!require_authenticated || (authenticated != 0));
+    if (role != HID_REPORT_ROLE_KEYBOARD &&
+        role != HID_REPORT_ROLE_MOUSE) {
+        return false;
+    }
+    return ble_bridge_bond_security_allowed(
+        role == HID_REPORT_ROLE_KEYBOARD, key_size, authenticated != 0,
+        secure_connection != 0);
 }
 
 static bool device_db_authenticated(int index) {
@@ -494,16 +539,15 @@ static bool device_db_authenticated(int index) {
     return authenticated != 0;
 }
 
-static bool context_security_ok(device_context_t *context) {
+static bool context_security_ok(device_context_t *context,
+                                hid_report_role_t role) {
     if (!context->identity_valid) {
         return false;
     }
     context->device_db_index =
         find_device_db_identity(context->identity_address_type,
                                 context->identity_address);
-    return device_db_security_ok(
-        context->device_db_index,
-        context->role == HID_REPORT_ROLE_KEYBOARD);
+    return device_db_security_ok(context->device_db_index, role);
 }
 
 static void initialize_device_contexts(void) {
@@ -552,10 +596,9 @@ static void load_saved_role(hid_report_role_t role) {
     saved->device_db_index = find_device_db_identity(
         (bd_addr_type_t)saved->record.address_type,
         saved->record.identity_address);
-    if (!device_db_security_ok(
-            saved->device_db_index, role == HID_REPORT_ROLE_KEYBOARD)) {
+    if (!device_db_security_ok(saved->device_db_index, role)) {
         context->state = DEVICE_REPAIR_REQUIRED;
-        BLE_LOG("%s role has no valid Secure Connections security record\n",
+        BLE_LOG("%s role has no acceptable bond security record\n",
                 role_name(role));
         return;
     }
@@ -841,9 +884,13 @@ static void begin_hids_client_discovery(device_context_t *context) {
 }
 
 static void begin_hids_preflight(device_context_t *context) {
-    if (!context_security_ok(context)) {
+    const hid_report_role_t security_role =
+        context->role == HID_REPORT_ROLE_KEYBOARD
+            ? HID_REPORT_ROLE_KEYBOARD
+            : HID_REPORT_ROLE_MOUSE;
+    if (!context_security_ok(context, security_role)) {
         disconnect_device(context,
-                          "bond is not 16-byte LE Secure Connections");
+                          "bond does not meet role security requirements");
         return;
     }
     (void)gap_request_connection_parameter_update(
@@ -1100,7 +1147,8 @@ static void handle_hids_connected(const uint8_t *packet) {
             disconnect_device(context, "reported role is unavailable");
             return;
         }
-        const bool secure_bond_ok = context_security_ok(context);
+        const bool secure_bond_ok =
+            context_security_ok(context, compiled_role);
         const bool authenticated =
             device_db_authenticated(context->device_db_index);
         if (!ble_bridge_enrollment_security_allowed(
@@ -1110,7 +1158,7 @@ static void handle_hids_connected(const uint8_t *packet) {
                 context,
                 compiled_role == HID_REPORT_ROLE_KEYBOARD
                     ? "keyboard did not complete authenticated fixed-passkey pairing"
-                    : "mouse bond is not 16-byte LE Secure Connections");
+                    : "mouse bond is not encrypted with a supported key size");
             return;
         }
         if (!store_enrolled_role(context, compiled_role)) {
@@ -1300,8 +1348,17 @@ static void led_timeout(btstack_timer_source_t *timer) {
         mouse_ready |= devices[i].role == HID_REPORT_ROLE_MOUSE;
     }
 
-    const bool on = ble_bridge_led_on(keyboard_ready, mouse_ready, busy,
-                                      passkey_prompt, led_ticks);
+    const uint32_t now = btstack_run_loop_get_time_ms();
+    if (failure_stage != BLE_FAILURE_STAGE_NONE &&
+        deadline_reached(now, failure_display_until_ms)) {
+        failure_stage = BLE_FAILURE_STAGE_NONE;
+    }
+
+    const bool on = failure_stage != BLE_FAILURE_STAGE_NONE
+                        ? ble_bridge_failure_led_on(
+                              failure_stage, led_ticks - failure_led_start_tick)
+                        : ble_bridge_led_on(keyboard_ready, mouse_ready, busy,
+                                            passkey_prompt, led_ticks);
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, on);
     led_ticks++;
     btstack_run_loop_set_timer(timer, LED_TICK_MS);
@@ -1743,7 +1800,8 @@ int btstack_main(int argc, const char *argv[]) {
     sm_init();
     sm_set_io_capabilities(IO_CAPABILITY_DISPLAY_ONLY);
     sm_use_fixed_passkey_in_display_role(BLE_BRIDGE_PAIRING_PASSKEY);
-    sm_set_encryption_key_size_range(16, 16);
+    sm_set_encryption_key_size_range(BLE_COMPAT_MIN_KEY_SIZE,
+                                     BLE_MAX_KEY_SIZE);
     sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION |
                                        SM_AUTHREQ_BONDING);
     gatt_client_init();

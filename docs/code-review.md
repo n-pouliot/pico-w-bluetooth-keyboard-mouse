@@ -50,14 +50,23 @@ causing BTstack to select Just Works despite `DisplayOnly`. Checkpoint `e595ebf`
 closed that downgrade: the candidate records whether the exact Secure
 Connections passkey-display event occurred, and a keyboard role is committed
 only when that record is true and BTstack's persisted bond is authenticated.
-Saved keyboard bonds also require the authenticated flag; mouse roles continue
-to accept 16-byte Secure Connections Just Works.
+Saved keyboard bonds also require the authenticated flag; at this review point,
+mouse roles accepted 16-byte Secure Connections Just Works.
 
 The focused reviewer rechecked `e595ebf` against pinned BTstack `501e6d2` and
 returned explicit **APPROVE** with no additional finding.
 
 The final extension passed strict Clang and MSVC host tests, ASan/UBSan, Clang
 static analysis, strict Arm compilation, and two identical clean Pico W builds.
+
+## M196 compatibility follow-up
+
+Physical diagnostics later isolated M196 rejection to the security stage. The
+mouse-only gate now accepts encrypted bonded HOGP Level 2 security with a 7- to
+16-byte key and no mandatory Secure Connections flag. Keyboard requirements
+remain unchanged. Pure-policy boundary tests, Clang ASan/UBSan tests, strict Arm
+compilation, and physical M196 pairing/input passed after this change. See
+`research/07_logitech_m196_compatibility.md` for the evidence boundary.
 Actual MX Mechanical association remains part of the physical evidence boundary.
 
 ## Independent build findings

@@ -37,11 +37,15 @@ small file along with the Pico LED pattern and exact mouse model.
 
 Do not flash a MAINTENANCE file for first setup.
 
-LOGITECH M196 RETEST (2026-09-02)
+LOGITECH M196 RESULT (2026-09-02)
 --------------------------------
-The original passive-scan build did not complete M196 enrollment. For the
-current M196 retest, use
-pico_w_dual_ble_hid_bridge_M196_ACTIVE_SCAN_TEST.uf2 in step 4. This does not
-erase the saved keyboard. After it reboots, immediately hold the M196 bottom
-button for 3 seconds and allow up to 60 seconds for the Pico LED to become
-solid.
+The current normal PRE_HARDWARE_TEST file includes the M196 fix and physically
+passed direct pairing, movement, and simultaneous basic use with the MX
+Mechanical on Windows. Use the normal file in step 4. The ACTIVE_SCAN_TEST and
+DIAGNOSTIC files are superseded investigation builds; do not choose them for a
+fresh setup.
+
+The M196 pairing procedure is exactly: turn it on, then hold its bottom
+on/off/pairing button for 3 seconds until its LED blinks. The Pico may briefly
+show two green pulses while only the mouse is ready; solid green means both the
+mouse and keyboard are connected.

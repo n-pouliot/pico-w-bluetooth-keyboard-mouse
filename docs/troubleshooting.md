@@ -31,7 +31,7 @@ If the LED never changes after 15 seconds, stop and use
 
 ## Understanding the LED
 
-These patterns are implemented but are not yet physically verified:
+The core ready-state patterns have been physically observed:
 
 | Pattern | Meaning |
 |---|---|
@@ -41,6 +41,11 @@ These patterns are implemented but are not yet physically verified:
 | Two 100 ms pulses every 2 seconds | Mouse ready; keyboard absent |
 | 500 ms on / 500 ms off | Neither role is ready |
 | 200 ms on / 200 ms off | Connection, security, or discovery is in progress |
+
+After an enrollment rejection, a long pulse followed by short pulses identifies
+the failed stage for 20 seconds: 1 connection, 2 security, 3 HIDS service,
+4 Report Map, 5 runtime report, or 6 internal. Do not confuse the long-plus-two
+diagnostic with the ordinary two-short-pulse “mouse only” state.
 
 For a maintenance image, solid indicates that its clear operation completed.
 A 150 ms rapid blink indicates failure. Reflash the normal image after a
@@ -62,8 +67,9 @@ maintenance image completes.
 - A short Easy-Switch press only selects a slot; it does not enter pairing mode.
 - If the keyboard code is not accepted, power-cycle the Pico normally to reopen
   enrollment, hold the Easy-Switch key until rapid blinking, and retry promptly.
-- Numeric Comparison, a passkey that must be entered into the Pico,
-  legacy-pairing, and OOB-only devices are intentionally unsupported.
+- Numeric Comparison, a passkey that must be entered into the Pico, and OOB-only
+  devices are intentionally unsupported. Legacy fallback is accepted only for
+  the unauthenticated mouse role; keyboards require Secure Connections.
 
 The firmware rejects unsupported, mixed keyboard/mouse, malformed, and
 oversized HID Report Maps. Rejection is safer than forwarding unknown bytes.
@@ -85,6 +91,22 @@ Use `pico_w_clear_all_pairings_MAINTENANCE.uf2` only when deliberately starting
 over with both devices, or whenever a role-clear operation was interrupted or
 reported failure. In that partial-clear case, clear-all is required because the
 role tag may be gone while its BLE database entry remains.
+
+## Mouse works on PC but not the Xbox dashboard
+
+This is expected. Xbox documents keyboard navigation for the console itself,
+but limits mouse navigation to select games and apps:
+
+- <https://www.xbox.com/en-US/community/for-everyone/accessibility>
+
+Keep the Pico connected and confirm its LED is solid, then launch a game whose
+Xbox Store capabilities explicitly include `Console Keyboard & Mouse`. A free,
+first-party test option is Halo Infinite multiplayer:
+
+- <https://www.xbox.com/en-US/games/store/x/9pp5g1f0c2b6>
+
+Test mouse-look, left/right click, and the wheel inside Academy/Training Mode or
+a match. Lack of a pointer on Xbox Home is not a bridge failure.
 
 ## Input appears stuck
 

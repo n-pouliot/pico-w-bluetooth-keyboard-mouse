@@ -12,12 +12,13 @@
   separate keyboard, mouse, and all-role maintenance-clear images.
 - Add cross-core release barriers and TinyUSB completion tracking to prevent
   stale or stuck input after disconnects and failed transfers.
-- Restrict first-run enrollment to a 180-second window and Secure Connections
-  with 16-byte encryption keys; support fixed displayed passkey `739241` for
-  keyboard responder-input pairing and Just Works for no-input/no-output mice.
-  Keyboard authorization requires the passkey event and an authenticated bond,
-  preventing a silent Just Works downgrade. Unknown devices are ignored outside
-  an enrollment window.
+- Restrict first-run enrollment to a 180-second window; support fixed displayed
+  passkey `739241` for keyboard responder-input pairing and encrypted, bonded
+  Just Works for no-input/no-output mice. Keyboard authorization requires the
+  passkey event plus an authenticated 16-byte Secure Connections bond,
+  preventing a silent Just Works downgrade. Mouse authorization accepts the
+  HOGP Level-2-compatible 7- to 16-byte key range and legacy fallback for broad
+  interoperability. Unknown devices are ignored outside an enrollment window.
 - Add host tests for HID parsing/normalization, persistence, cross-core
   mailboxes, malformed input, exhaustive mutation of the canonical boot
   keyboard descriptor, an empirical MX Mechanical NKRO descriptor, and
@@ -26,6 +27,10 @@
   double-click Windows USB diagnostic collector.
 - Use active BLE scanning so HID identity fields supplied only in a scan
   response can be discovered during enrollment and reconnect.
+- Add a one-long-plus-N-short failure-stage LED diagnostic. It isolated the
+  Logitech M196 failure to security negotiation; the mouse-specific Level 2
+  policy then physically passed pairing, cursor input, and simultaneous basic
+  operation with the MX Mechanical on Windows.
 - Harden BTstack callback routing, HIDS service preflight, connection-event and
   timeout ownership, exact rejected-bond cleanup, radio restart retries, USB
   suspend/resume, boot-protocol mouse masking, and overflow fail-safe behavior.
@@ -34,8 +39,10 @@
 - Add architecture research, safety/recovery guidance, reproducible build
   instructions, beginner flashing instructions, and a staged hardware plan.
 
-This revision remains **PRE-HARDWARE TEST**. Physical Pico W, BLE peripheral,
-PC USB, power/current, latency, and Xbox behavior are not yet verified.
+This revision remains **PRE-HARDWARE TEST** while reconnect stress, complete
+USB inspection, power/current, latency, and Xbox mouse/game behavior are still
+pending. Pico W flashing, both intended BLE peripherals, simultaneous basic PC
+input, and Xbox keyboard input have partial physical passes.
 
 ## 20260830
 

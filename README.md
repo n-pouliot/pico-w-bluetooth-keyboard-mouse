@@ -6,11 +6,11 @@ time, then exposes a fixed, ordinary USB keyboard and USB mouse through the
 Pico W's Micro-USB port.
 
 > Status: **HARDWARE TEST IN PROGRESS** under the deliberately conservative
-> **PRE-HARDWARE TEST** label. The Pico W flashing path and MX Mechanical
-> keyboard data path have passed on a Windows PC. Logitech M196 enrollment
-> failed on the passive-scan build; an active-scan candidate awaits retest.
-> Simultaneous operation and Xbox Series X behavior remain unverified. Do not
-> interpret this status as an Xbox compatibility claim.
+> **PRE-HARDWARE TEST** label. Pico W flashing, MX Mechanical keyboard input,
+> Logitech M196 mouse input, and basic simultaneous use have passed on a
+> Windows PC. Keyboard input has also passed on an Xbox; Xbox mouse behavior,
+> reconnect stress, and broader game compatibility remain unverified. Do not
+> interpret this status as a universal Xbox compatibility claim.
 
 This project does not emulate an Xbox controller, use Xbox authentication,
 send proprietary commands, mount storage during normal operation, or modify
@@ -81,9 +81,11 @@ Deliberate limitations:
 - no keyboard lock-LED output forwarding;
 - keyboards that use the common host-displays/six-digit-code workflow enter the
   fixed code `739241` and then press Enter;
-- mice and other no-input/no-output peripherals use Secure Connections Just
-  Works, which is encrypted and bonded but is not MITM-authenticated;
-- no Numeric Comparison, Pico-entered passkey, legacy-pairing, or OOB workflow;
+- mice and other no-input/no-output peripherals use encrypted, bonded Just
+  Works with a standards-compatible 7- to 16-byte key; LE Secure Connections
+  is preferred but legacy pairing is accepted for mouse interoperability;
+- no Numeric Comparison, Pico-entered passkey, or OOB workflow; keyboards still
+  require authenticated LE Secure Connections with a 16-byte key;
 - a malformed, oversized, mixed keyboard/mouse, or unsupported Report Map is
   rejected rather than guessed.
 
@@ -109,8 +111,9 @@ Bluetooth starts.
    the Pico to open another bounded window for that still-empty role.
 
 Outside an enrollment window, unknown advertisers are ignored. Saved identities
-must re-encrypt with an existing 16-byte Secure Connections bond; a missing key
-does not silently authorize re-pairing.
+must re-encrypt with an acceptable existing bond: authenticated 16-byte Secure
+Connections for keyboards, or encrypted 7- to 16-byte bonding for mice. A
+missing key does not silently authorize re-pairing.
 
 The fixed keyboard code is public, not a password. Security depends on the
 bounded enrollment window and putting only the intended device into pairing
@@ -119,7 +122,7 @@ so user presence cannot prove the mouse's identity.
 
 ## LED meanings
 
-These patterns are implemented but remain physically unverified:
+The core ready-state patterns have been observed on the test Pico W:
 
 | Pattern | Meaning |
 |---|---|
@@ -129,6 +132,11 @@ These patterns are implemented but remain physically unverified:
 | Two 100 ms pulses every 2 seconds | Mouse ready; keyboard absent |
 | 500 ms on / 500 ms off | Neither role is ready |
 | 200 ms on / 200 ms off | A connection, security, or discovery operation is active |
+
+After a rejected enrollment attempt, a long green lead pulse followed by one
+to six short pulses reports the failed stage for 20 seconds: 1 connection,
+2 security, 3 HIDS service, 4 Report Map, 5 runtime report, or 6 internal.
+This diagnostic behavior identified the original M196 failure at stage 2.
 
 For a maintenance image, solid means its clear operation completed. A rapid
 150 ms blink means that operation failed. Reflash the normal firmware after a
@@ -150,15 +158,19 @@ from being dropped behind a full queue.
 
 The release directory contains:
 
-- `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` — normal firmware;
-- `pico_w_dual_ble_hid_bridge_M196_ACTIVE_SCAN_TEST.uf2` — active-scan
-  compatibility candidate for the Logitech M196 hardware retest;
+- `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` — current normal firmware,
+  including the physically tested M196 compatibility fix;
+- `pico_w_dual_ble_hid_bridge_M196_COMPATIBILITY_TEST.uf2` — exact M196 test
+  image, byte-identical to the current normal firmware;
+- `pico_w_dual_ble_hid_bridge_M196_ACTIVE_SCAN_TEST.uf2` and
+  `pico_w_dual_ble_hid_bridge_M196_DIAGNOSTIC.uf2` — superseded investigation
+  images retained for traceability;
 - `pico_w_clear_keyboard_pairing_MAINTENANCE.uf2`;
 - `pico_w_clear_mouse_pairing_MAINTENANCE.uf2`; and
 - `pico_w_clear_all_pairings_MAINTENANCE.uf2`.
 
 Verify downloads against `release/SHA256SUMS.txt`. The normal firmware SHA-256
-is `FF0EE7D18E4A4F0E420EE7AE4BC2990A069714BBE272E3A277270BA28ED0690F`.
+is `7FA5350C1624AB35790336BA7B0E118A837E3831F66C1D5CA23C2DB2306C3A78`.
 
 Use the normal image for first installation. Maintenance images are only for
 deliberately clearing role state and must be followed by reflashing the normal
@@ -177,7 +189,7 @@ Follow the [beginner flashing guide](docs/beginner-flashing.md) exactly.
 - [Recovery guide](docs/recovery.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [First hardware test plan](docs/first-hardware-test.md)
-- [Verified devices](docs/verified_devices.md) — currently none for this revision
+- [Verified devices](docs/verified_devices.md)
 
 ## Xbox caveat
 

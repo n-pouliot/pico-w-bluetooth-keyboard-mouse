@@ -132,6 +132,15 @@ static int test_fixed_passkey_policy(void) {
     CHECK(ble_bridge_enrollment_security_allowed(false, true, false, false));
     CHECK(ble_bridge_enrollment_security_allowed(false, true, true, true));
     CHECK(!ble_bridge_enrollment_security_allowed(false, false, true, true));
+
+    CHECK(ble_bridge_bond_security_allowed(false, 7, false, false));
+    CHECK(ble_bridge_bond_security_allowed(false, 16, false, true));
+    CHECK(!ble_bridge_bond_security_allowed(false, 6, false, false));
+    CHECK(!ble_bridge_bond_security_allowed(false, 17, false, true));
+    CHECK(ble_bridge_bond_security_allowed(true, 16, true, true));
+    CHECK(!ble_bridge_bond_security_allowed(true, 15, true, true));
+    CHECK(!ble_bridge_bond_security_allowed(true, 16, false, true));
+    CHECK(!ble_bridge_bond_security_allowed(true, 16, true, false));
     return 0;
 }
 
@@ -150,6 +159,27 @@ static int test_led_policy(void) {
               ((tick % 10u) < 5u));
         CHECK(ble_bridge_led_on(false, false, true, true, tick) ==
               (tick == 0u || tick == 2u || tick == 4u));
+    }
+
+    CHECK(!ble_bridge_failure_led_on(BLE_FAILURE_STAGE_NONE, 0u));
+    CHECK(!ble_bridge_failure_led_on((ble_failure_stage_t)7, 0u));
+    for (int stage = BLE_FAILURE_STAGE_CONNECTION;
+         stage <= BLE_FAILURE_STAGE_INTERNAL; ++stage) {
+        const ble_failure_stage_t failure_stage =
+            (ble_failure_stage_t)stage;
+        for (tick = 0u; tick < 10u; ++tick) {
+            CHECK(ble_bridge_failure_led_on(failure_stage, tick));
+        }
+        for (tick = 10u; tick < 15u; ++tick) {
+            CHECK(!ble_bridge_failure_led_on(failure_stage, tick));
+        }
+        for (tick = 0u; tick < (uint32_t)stage * 4u; ++tick) {
+            CHECK(ble_bridge_failure_led_on(failure_stage, 15u + tick) ==
+                  ((tick % 4u) < 2u));
+        }
+        const uint32_t cycle = 30u + ((uint32_t)stage * 4u);
+        CHECK(!ble_bridge_failure_led_on(failure_stage, cycle - 1u));
+        CHECK(ble_bridge_failure_led_on(failure_stage, cycle));
     }
     return 0;
 }

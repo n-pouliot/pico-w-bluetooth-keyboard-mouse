@@ -194,6 +194,13 @@ Recommended release policy:
 
 This subset will exclude keyboards that insist on the familiar “type this six-digit code” flow. That is an explicit security/UI limitation, not a bug to work around by disabling authentication checks.
 
+> Later hardware-result note (2026-09-02): this initial recommendation was
+> superseded in two bounded ways. The fixed-passkey keyboard addendum supports
+> the target keyboard without weakening its authenticated Secure Connections
+> gate. The M196 investigation accepts the HOGP Level 2 baseline for mouse roles
+> after a physical stage-2 security failure; see
+> `05_fixed_passkey_pairing.md` and `07_logitech_m196_compatibility.md`.
+
 ### Proposed physical workflow
 
 Normal operation is non-bondable for application purposes: reconnect the two stored identities and ignore unknown HID advertisers. Pairing opens for 60 seconds only after a deliberate action.
