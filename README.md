@@ -8,9 +8,10 @@ Pico W's Micro-USB port.
 > Status: **HARDWARE TEST IN PROGRESS** under the deliberately conservative
 > **PRE-HARDWARE TEST** label. Pico W flashing, MX Mechanical keyboard input,
 > Logitech M196 mouse input, and basic simultaneous use have passed on a
-> Windows PC. Keyboard input has also passed on an Xbox; Xbox mouse behavior,
-> reconnect stress, and broader game compatibility remain unverified. Do not
-> interpret this status as a universal Xbox compatibility claim.
+> Windows PC. Both keyboard and mouse input have also passed on an Xbox Series
+> X in The Sims 4. Reconnect stress and broader game compatibility remain
+> unverified. Do not interpret this title-specific result as a universal Xbox
+> compatibility claim.
 
 This project does not emulate an Xbox controller, use Xbox authentication,
 send proprietary commands, mount storage during normal operation, or modify

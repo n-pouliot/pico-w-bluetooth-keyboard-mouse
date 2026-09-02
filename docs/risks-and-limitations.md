@@ -3,9 +3,9 @@
 ## Release status
 
 The artifact remains **PRE-HARDWARE TEST**. Pico W boot and both intended BLE
-peripherals have partial PC passes, and keyboard input has an Xbox partial pass.
-Complete USB inspection, reconnect/stress, actual current, latency, and Xbox
-mouse/game behavior have not been tested.
+peripherals have partial PC passes, and both roles passed in The Sims 4 on Xbox
+Series X. Complete USB inspection, reconnect/stress, actual current, latency,
+and broader Xbox game behavior have not been tested.
 
 ## Accepted compatibility limits
 
@@ -60,12 +60,12 @@ protocol, as required by the boot mouse shape.
 
 ## Xbox compatibility — partially verified
 
-Keyboard input worked when the user connected the Pico to an Xbox. The Xbox
+Keyboard input worked when the user connected the Pico to an Xbox Series X. The
 dashboard ignored the mouse, which matches Microsoft's documented distinction:
 keyboard navigation works on Xbox, while mouse navigation is limited to select
-games/apps. Exact Xbox software/title details and mouse behavior in a supported
-game remain unrecorded. The firmware intentionally does not emulate a controller
-or bypass licensed-accessory authentication.
+games/apps. Both keyboard and mouse then worked in The Sims 4. Other titles and
+the exact console software version remain unrecorded. The firmware intentionally
+does not emulate a controller or bypass licensed-accessory authentication.
 
 ## Persistence and recovery residual risks
 

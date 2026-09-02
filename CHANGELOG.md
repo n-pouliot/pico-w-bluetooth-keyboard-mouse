@@ -40,9 +40,10 @@
   instructions, beginner flashing instructions, and a staged hardware plan.
 
 This revision remains **PRE-HARDWARE TEST** while reconnect stress, complete
-USB inspection, power/current, latency, and Xbox mouse/game behavior are still
+USB inspection, power/current, latency, and broad game behavior are still
 pending. Pico W flashing, both intended BLE peripherals, simultaneous basic PC
-input, and Xbox keyboard input have partial physical passes.
+input, and keyboard-plus-mouse input in The Sims 4 on Xbox Series X have
+physical passes.
 
 ## 20260830
 

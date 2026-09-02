@@ -20,8 +20,8 @@ Labels mean:
 | Static USB topology is two HID interfaces, endpoints `0x81` and `0x82`, total configuration length 59 | VERIFIED | Compile-time assertions, source inspection, cross-build. Physical enumeration still unverified. |
 | TinyUSB supports the chosen two-interface HID topology | DOCUMENTED | Pinned TinyUSB macros/examples and successful compilation. |
 | A normal PC accepts and uses this exact descriptor topology | UNVERIFIED | Requires descriptor capture and functional PC test. |
-| Xbox accepts this exact composite HID device for keyboard input | PARTIAL PASS | The user physically confirmed keyboard input through the Pico on an Xbox. Exact console software, screen/title, mouse acceptance, and broader coverage remain unrecorded. |
-| A particular Xbox game accepts keyboard and mouse input | UNVERIFIED | Title-specific behavior is outside firmware control. |
+| Xbox Series X accepts this exact composite HID device | PARTIAL PASS | Keyboard navigation worked, and both keyboard and M196 mouse input worked through the Pico inside The Sims 4. Console software version and broader coverage remain unrecorded. |
+| A particular Xbox game accepts keyboard and mouse input | VERIFIED for one title | The Sims 4 physically accepted both roles on Xbox Series X. Title-specific behavior remains outside firmware control. |
 | MX Mechanical and Logitech M196 are BLE HOGP devices with one supported HIDS service and compatible maps | PARTIAL PASS | Both physically paired and sent their respective input through the Pico; full feature coverage and extended stress remain pending. |
 | Supported security associations can pair the chosen peripherals | PARTIAL PASS | MX Mechanical fixed-code authenticated Secure Connections passed with `739241`; M196 encrypted bonded Level 2 pairing passed. Numeric Comparison, Pico-input passkey, OOB, and proprietary transports remain unsupported. Legacy fallback is allowed only for mice. |
 | Report compiler rejects malformed/oversized inputs without allocation or overflow | VERIFIED | Host tests, strict compiler diagnostics, and source review. |

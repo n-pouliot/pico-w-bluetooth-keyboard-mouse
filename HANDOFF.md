@@ -42,12 +42,13 @@ Upstream baseline: `2c6a303d1f172e56b271283af978efdcc483a389`
   physically paired the M196. Mouse input and keyboard input both worked on
   Windows. The LED first showed the mouse-only two-pulse state while the saved
   keyboard reconnected, then became solid, confirming both roles ready.
-- PC descriptor capture, extended simultaneous input, power-cycle reconnect
-  stress, and Xbox mouse behavior in a supported game remain pending. The user
-  connected the Pico with the MX Mechanical to an Xbox and confirmed keyboard
-  input works; the dashboard did not react to the mouse, which is expected
-  because Xbox limits mouse navigation to select games/apps. The exact Xbox
-  screen/title was not recorded, so do not generalize this to every game.
+- The user then connected the same Pico, MX Mechanical, and M196 to an Xbox
+  Series X. Keyboard input worked in the console UI, the dashboard did not react
+  to the mouse as expected, and both keyboard and mouse input worked inside The
+  Sims 4, whose Store capability includes `Console Keyboard & Mouse`. This is a
+  title-specific end-to-end Xbox pass, not a claim for every game.
+- PC descriptor capture, extended simultaneous input, and power-cycle reconnect
+  stress remain pending.
 
 The original four release binaries were built from first-run compatibility
 checkpoint `7d506fc28cb67bf3c629a4656508233419c6bf14`. The current normal binary was
@@ -116,11 +117,10 @@ and remote synchronization with `git status -sb` before resuming.
 - Largest observed project-owned callback frame: 152 bytes. Core 1 has an
   explicit 8 KiB stack plus a 128-byte canary.
 
-MX Mechanical BLE interoperability and end-to-end keyboard input have a partial
-physical pass on both Windows and Xbox. M196 interoperability and basic
-simultaneous keyboard/mouse input have passed on Windows. Extended simultaneous
-use, reconnect stress, USB suspend current, and Xbox mouse/game acceptance
-remain **NOT TESTED**.
+MX Mechanical and M196 interoperability plus basic simultaneous input have
+passed on Windows. Both devices also passed end-to-end through the Pico on Xbox
+Series X in The Sims 4. Extended simultaneous use, reconnect stress, USB
+suspend current, and broader Xbox/game acceptance remain **NOT TESTED**.
 
 The current normal ELF is 474,040 B `text`, 0 B `data`, and 46,080 B `bss`;
 its binary end is `0x10072BBC`, well below the two 4 KiB BTstack banks starting
@@ -174,10 +174,10 @@ while mouse Just Works remains accepted.
 
 1. Continue at Stage 4/5 of `docs/first-hardware-test.md`: verify every M196
    button and wheel action, then exercise both devices together for 15 minutes.
-   Next, perform the ten-second Pico power-cycle reconnect test before trying
-   the mouse inside an Xbox game whose Store listing says `Console Keyboard &
-   Mouse`. Do not use the Xbox dashboard as the mouse test and do not promote
-   the release label until the remaining hardware gates pass.
+   Next, perform the ten-second Pico power-cycle reconnect test. The Xbox
+   Series X / The Sims 4 keyboard-and-mouse stage has passed; do not generalize
+   it to unsupported games or promote the release label until the remaining
+   hardware gates pass.
 2. If any hardware stage fails, preserve the exact firmware hash, device model,
    LED state, PC descriptor capture, and reproduction steps before changing
    code.

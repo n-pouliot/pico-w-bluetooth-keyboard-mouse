@@ -49,3 +49,10 @@ The M196 pairing procedure is exactly: turn it on, then hold its bottom
 on/off/pairing button for 3 seconds until its LED blinks. The Pico may briefly
 show two green pulses while only the mouse is ready; solid green means both the
 mouse and keyboard are connected.
+
+XBOX RESULT (2026-09-02)
+------------------------
+The MX Mechanical and M196 both physically worked through the Pico in The Sims
+4 on Xbox Series X. The mouse does not move around the Xbox Home dashboard;
+that is expected because Xbox supports mouse input only in selected games and
+apps. Test inside a title whose Store page says Console Keyboard & Mouse.

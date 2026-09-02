@@ -11,8 +11,8 @@ enroll the M196; active scanning reached security, diagnostic code 2 isolated
 that stage, and the mouse-specific HOGP Level 2 policy completed pairing.
 Current, latency, suspend behavior, full USB descriptor capture, extended
 simultaneous use, and reconnect stress remain **NOT TESTED**. The user also
-confirmed keyboard input through the Pico on an Xbox, but the exact
-screen/title and Xbox mouse behavior in a supported game remain unrecorded.
+confirmed keyboard and mouse input through the Pico on an Xbox Series X in The
+Sims 4. The Xbox dashboard ignored the mouse as expected.
 
 ## Environment
 
@@ -120,7 +120,7 @@ misrepresented as simulated proof.
 | Flash power-loss and maintenance recovery | NOT TESTED |
 | USB configured/unconfigured/suspend current | NOT TESTED |
 | End-to-end latency | NOT TESTED |
-| Xbox and game behavior | PARTIAL PASS — keyboard input works; dashboard ignored the mouse as expected; supported-game mouse test pending |
+| Xbox and game behavior | PARTIAL PASS — keyboard and mouse work in The Sims 4 on Xbox Series X; dashboard mouse rejection is expected; broader titles pending |
 
 Run these in order using `docs/first-hardware-test.md`. Any failed hardware
 stage keeps the PRE_HARDWARE_TEST label and must be recorded rather than hidden.

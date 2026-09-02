@@ -29,9 +29,10 @@ With `pico_w_dual_ble_hid_bridge_M196_COMPATIBILITY_TEST.uf2` (SHA-256
 M196 paired and produced mouse input on Windows. The LED showed two pulses
 while only the mouse was ready, then solid after the saved MX Mechanical
 reconnected; the user confirmed both devices worked. Button/wheel coverage,
-15-minute simultaneous stress, power-cycle reconnect, and Xbox mouse behavior
-inside a supported game remain pending. The Xbox dashboard not reacting to the
-mouse is expected platform behavior, not a failed bridge test.
+15-minute simultaneous stress and power-cycle reconnect remain pending. The
+same M196 then produced mouse input through the Pico in The Sims 4 on Xbox
+Series X. The Xbox dashboard not reacting to the mouse is expected platform
+behavior, not a failed bridge test.
 
 The starting upstream project listed several devices tested with its own
 single-device/dynamic-descriptor firmware. Those results do **not** verify this
@@ -51,6 +52,7 @@ Add a device here only after recording:
 - PC operating system and observed USB topology; and
 - firmware commit and UF2 SHA-256.
 
-Xbox acceptance, if tested later, must be recorded separately from PC behavior
-and must name the console software version and the title tested. A game's
-keyboard/mouse support does not imply support in every other game.
+Xbox acceptance is recorded separately from PC behavior and must name the title
+tested. The Sims 4 passed on Xbox Series X; the console software version was not
+captured. One game's keyboard/mouse support does not imply support in every
+other game.

@@ -3,6 +3,12 @@
 The release is software-verified only. Stop at the first unexpected result and
 record exactly what happened; do not improvise with random firmware or wiring.
 
+Progress recorded 2026-09-02: BOOTSEL flashing, direct MX Mechanical and M196
+pairing, basic simultaneous Windows input, Xbox Series X keyboard input, and
+keyboard-plus-mouse input in The Sims 4 passed. Full descriptor capture,
+feature coverage, extended stress, power-cycle reconnect, recovery, current,
+and latency stages remain pending.
+
 ## Stage 1 — ROM recovery and flash
 
 On a PC, enter BOOTSEL mode and confirm `RPI-RP2` appears. Copy the normal
