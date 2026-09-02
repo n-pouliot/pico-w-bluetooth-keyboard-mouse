@@ -5,12 +5,12 @@ connects to one supported BLE keyboard and one supported BLE mouse at the same
 time, then exposes a fixed, ordinary USB keyboard and USB mouse through the
 Pico W's Micro-USB port.
 
-> Status: **READY FOR HARDWARE TEST** under the deliberately conservative
-> **PRE-HARDWARE TEST** label. The source builds, host-side tests pass, and two
-> clean same-day release builds produced identical UF2 files.
-> It has not yet run on a physical Pico W, enumerated on a PC, connected to real
-> peripherals, or been tested on an Xbox Series X. Do not interpret this status
-> as a compatibility claim.
+> Status: **HARDWARE TEST IN PROGRESS** under the deliberately conservative
+> **PRE-HARDWARE TEST** label. The Pico W flashing path and MX Mechanical
+> keyboard data path have passed on a Windows PC. Logitech M196 enrollment
+> failed on the passive-scan build; an active-scan candidate awaits retest.
+> Simultaneous operation and Xbox Series X behavior remain unverified. Do not
+> interpret this status as an Xbox compatibility claim.
 
 This project does not emulate an Xbox controller, use Xbox authentication,
 send proprietary commands, mount storage during normal operation, or modify
@@ -151,6 +151,8 @@ from being dropped behind a full queue.
 The release directory contains:
 
 - `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` — normal firmware;
+- `pico_w_dual_ble_hid_bridge_M196_ACTIVE_SCAN_TEST.uf2` — active-scan
+  compatibility candidate for the Logitech M196 hardware retest;
 - `pico_w_clear_keyboard_pairing_MAINTENANCE.uf2`;
 - `pico_w_clear_mouse_pairing_MAINTENANCE.uf2`; and
 - `pico_w_clear_all_pairings_MAINTENANCE.uf2`.

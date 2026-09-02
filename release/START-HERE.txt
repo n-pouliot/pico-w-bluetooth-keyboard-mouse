@@ -36,3 +36,12 @@ this folder. It saves xbox-pico-diagnostic-*.txt to the Desktop. Share that
 small file along with the Pico LED pattern and exact mouse model.
 
 Do not flash a MAINTENANCE file for first setup.
+
+LOGITECH M196 RETEST (2026-09-02)
+--------------------------------
+The original passive-scan build did not complete M196 enrollment. For the
+current M196 retest, use
+pico_w_dual_ble_hid_bridge_M196_ACTIVE_SCAN_TEST.uf2 in step 4. This does not
+erase the saved keyboard. After it reboots, immediately hold the M196 bottom
+button for 3 seconds and allow up to 60 seconds for the Pico LED to become
+solid.

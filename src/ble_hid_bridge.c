@@ -40,6 +40,10 @@
 #define LED_TICK_MS 100u
 #define TRANSPORT_TICK_MS 5u
 
+#define BLE_SCAN_TYPE_ACTIVE 1u
+#define BLE_SCAN_INTERVAL_UNITS 48u
+#define BLE_SCAN_WINDOW_UNITS 48u
+
 #define CONN_INTERVAL_MIN_UNITS 10u
 #define CONN_INTERVAL_MAX_UNITS 12u
 #define CONN_LATENCY_EVENTS 0u
@@ -1201,7 +1205,16 @@ static void drive_connection_manager(void) {
         }
     }
     if (need_scan && !scan_active) {
-        gap_set_scan_parameters(0, 48, 48);
+        /*
+         * Request scan responses while enrolling. Some HID peripherals put
+         * their service UUID, Appearance, or identifying name in the scan
+         * response rather than the primary advertising packet. BTstack reports
+         * both packet types through GAP_EVENT_ADVERTISING_REPORT, and the
+         * existing parser applies the same bounded validation to either one.
+         */
+        gap_set_scan_parameters(BLE_SCAN_TYPE_ACTIVE,
+                                BLE_SCAN_INTERVAL_UNITS,
+                                BLE_SCAN_WINDOW_UNITS);
         gap_start_scan();
         scan_active = true;
         BLE_LOG("Scanning for authorized HID peripherals%s\n",

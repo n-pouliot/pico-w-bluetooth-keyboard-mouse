@@ -1,15 +1,16 @@
 # Agent handoff
 
-Last updated: 2026-09-01 (America/Toronto)
+Last updated: 2026-09-02 (America/Toronto)
 
 ## Objective and release boundary
 
 Finish and validate defensive firmware for an original Raspberry Pi Pico W that
 bridges one BLE HID keyboard and one BLE HID mouse to two fixed USB HID boot
 interfaces. The target host is an Xbox Series X, but no physical Pico W,
-keyboard, mouse, or Xbox has been tested in this workspace. Until those tests
-pass, the only truthful release label is **PRE_HARDWARE_TEST / READY FOR HARDWARE
-TEST**. Never describe it as Xbox-tested or production-ready.
+keyboard, mouse, or Xbox had been tested when the software gate was completed.
+Physical testing is now in progress as recorded below. Until the remaining
+tests pass, the only truthful release label is **PRE_HARDWARE_TEST / HARDWARE
+TEST IN PROGRESS**. Never describe it as Xbox-tested or production-ready.
 
 Repository: `https://github.com/n-pouliot/xbox-pico` (private)
 
@@ -17,6 +18,23 @@ Branch: `main`
 
 Upstream baseline: `2c6a303d1f172e56b271283af978efdcc483a389`
 (`20260830_7`)
+
+## Live hardware status (2026-09-02)
+
+- Original Pico W BOOTSEL flashing and normal reboot physically passed.
+- Logitech MX Mechanical Easy-Switch slot 3 completed direct BLE pairing with
+  fixed passkey `739241`; typing reached Windows through the Pico with Windows
+  Bluetooth disconnected. This verifies the real keyboard data path.
+- Logitech M196 (M-R0114) entered pairing mode and Windows could detect it, but
+  mouse enrollment did not complete on passive-scan firmware SHA-256
+  `FF0EE7D18E4A4F0E420EE7AE4BC2990A069714BBE272E3A277270BA28ED0690F`.
+- A narrow active-scan candidate is packaged as
+  `release/pico_w_dual_ble_hid_bridge_M196_ACTIVE_SCAN_TEST.uf2`, SHA-256
+  `E40CFF334A855924A02FBE1B62E1FE35740F93F7E81F8BBF742448766082383D`. It
+  requests scan responses but does not alter persistence or pairing security.
+  Physical M196 retest is pending.
+- PC descriptor capture, simultaneous keyboard/mouse use, reconnect stress,
+  and every Xbox test remain pending.
 
 Release binaries were built from first-run compatibility checkpoint:
 `7d506fc28cb67bf3c629a4656508233419c6bf14`
@@ -71,8 +89,9 @@ and remote synchronization with `git status -sb` before resuming.
 - Largest observed project-owned callback frame: 152 bytes. Core 1 has an
   explicit 8 KiB stack plus a 128-byte canary.
 
-Physical BLE interoperability, USB suspend current, Xbox USB acceptance, and
-end-to-end input behavior are **NOT TESTED**.
+MX Mechanical BLE interoperability and end-to-end keyboard input have a partial
+physical pass. M196 mouse interoperability, simultaneous input, USB suspend
+current, and Xbox USB acceptance remain **NOT TESTED or unresolved**.
 
 The normal ELF is 473,664 B `text`, 0 B `data`, and 46,072 B `bss`; its binary
 end is `0x10072A44`, well below the two 4 KiB BTstack banks starting at

@@ -22,14 +22,14 @@ Labels mean:
 | A normal PC accepts and uses this exact descriptor topology | UNVERIFIED | Requires descriptor capture and functional PC test. |
 | Xbox Series X accepts this exact composite HID device | UNVERIFIED | Microsoft documents USB keyboard/mouse use, but topology and console-version behavior need testing. |
 | A particular Xbox game accepts keyboard and mouse input | UNVERIFIED | Title-specific behavior is outside firmware control. |
-| MX Mechanical and the separate inexpensive mouse are BLE HOGP devices with one supported HIDS service and compatible maps | PARTIAL / UNVERIFIED | Logitech documents direct BLE support, and an empirical MX Mechanical keyboard-interface descriptor is accepted and normalized in a regression test. The direct BLE Report Map/topology and physical device remain untested; the mouse model remains unspecified. The G502 LIGHTSPEED is not a candidate BLE mouse. |
-| Supported Secure Connections association can pair the chosen peripherals | UNVERIFIED | Host-displayed passkey entry uses fixed code `739241`; no-input/no-output mice use Just Works. Numeric Comparison, Pico-input passkey, legacy pairing, and proprietary transports remain unsupported. |
+| MX Mechanical and Logitech M196 are BLE HOGP devices with one supported HIDS service and compatible maps | PARTIAL / UNVERIFIED | The MX Mechanical physically paired and sent keyboard input through the Pico. Logitech documents M196 BLE HID, but passive-scan enrollment did not complete; active-scan retest and actual topology/map acceptance are pending. |
+| Supported Secure Connections association can pair the chosen peripherals | PARTIAL | MX Mechanical fixed-code pairing physically passed with `739241`; M196 Just Works pairing has not yet completed. Numeric Comparison, Pico-input passkey, legacy pairing, and proprietary transports remain unsupported. |
 | Report compiler rejects malformed/oversized inputs without allocation or overflow | VERIFIED | Host tests, strict compiler diagnostics, and source review. |
 | Disconnect release barriers cannot be displaced by queued state | VERIFIED | Mailbox unit tests cover release priority, stale generations, and completion tokens. |
 | USB transfer completion and failure callbacks behave as expected on RP2040 | DOCUMENTED / UNVERIFIED | Pinned TinyUSB API was inspected; physical endpoint behavior needs hardware. |
 | Bridge-added post-notification scheduling is normally under one 1 ms USB frame | INFERRED | Parsing is bounded and mailbox-only; actual latency and BLE interval require measurement. |
 | Declaring 500 mA is accepted and actual Pico W draw remains within USB limits | DOCUMENTED / UNVERIFIED | Descriptor value is legal for configured USB 2.0 high-power; real pre-configured, active, and suspend current needs measurement. |
-| Onboard LED timings are visible and match documentation | UNVERIFIED | Logic is compiled, but CYW43439-controlled LED was not observed. |
+| Onboard LED timings are visible and match documentation | PARTIAL | The onboard green LED works and showed operational patterns during keyboard/mouse testing; exact timing counts were not measured. |
 | Maintenance images clear real TLV/bond state correctly | VERIFIED in code / UNVERIFIED on flash | Serializer and sequencing were tested/inspected; power-cycle and flash behavior need a board. |
 
 Primary sources and precise citations are recorded under `docs/research/`.

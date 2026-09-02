@@ -2,11 +2,14 @@
 
 ## Current gate status
 
-**READY FOR HARDWARE TEST under the PRE_HARDWARE_TEST label.**
+**HARDWARE TEST IN PROGRESS under the PRE_HARDWARE_TEST label.**
 
 All available software-only gates pass on first-run compatibility source
-checkpoint `7d506fc`. No physical hardware was available. Pico W boot, BLE peripherals, PC
-USB enumeration, current, latency, suspend behavior, and Xbox behavior remain
+checkpoint `7d506fc`. Physical BOOTSEL flashing and the MX Mechanical
+BLE-to-Pico-to-Windows keyboard path passed on 2026-09-02. Logitech M196 mouse
+enrollment did not complete with the passive-scan artifact; an active-scan
+candidate was then built and awaits retest. Current, latency, suspend behavior,
+full USB descriptor capture, simultaneous input, and Xbox behavior remain
 **NOT TESTED** and cannot be inferred from these results.
 
 ## Environment
@@ -82,6 +85,7 @@ warning occurred.
 | Packaged file | Bytes | SHA-256 |
 |---|---:|---|
 | `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` | 939,520 | `FF0EE7D18E4A4F0E420EE7AE4BC2990A069714BBE272E3A277270BA28ED0690F` |
+| `pico_w_dual_ble_hid_bridge_M196_ACTIVE_SCAN_TEST.uf2` | 939,520 | `E40CFF334A855924A02FBE1B62E1FE35740F93F7E81F8BBF742448766082383D` |
 | `pico_w_clear_keyboard_pairing_MAINTENANCE.uf2` | 788,480 | `7C83902AC8CEE984B2B6E0415232559616EED425F2C6F843ED37E4CABA62D65C` |
 | `pico_w_clear_mouse_pairing_MAINTENANCE.uf2` | 788,480 | `A32CE5B2CE34677EB433381DB319CBCDD8E5387DEF1F3614ED8D2B77610CAE65` |
 | `pico_w_clear_all_pairings_MAINTENANCE.uf2` | 786,944 | `7AC4A193BCF73AB2BE4DCFC97AA8E5C4D9412CC181D1068A69F2233B93D6DC5D` |
@@ -101,10 +105,10 @@ misrepresented as simulated proof.
 
 | Hardware layer | Result |
 |---|---|
-| Pico W boot and LED | NOT TESTED |
-| PC USB enumeration and descriptor capture | NOT TESTED |
-| Real BLE keyboard | NOT TESTED |
-| Real BLE mouse | NOT TESTED |
+| Pico W boot and LED | PARTIAL PASS — BOOTSEL flash, reboot, and green LED observed |
+| PC USB enumeration and descriptor capture | PARTIAL PASS — keyboard input works through USB; full descriptor capture pending |
+| Real BLE keyboard | PARTIAL PASS — MX Mechanical paired and typed through Pico |
+| Real BLE mouse | FAIL/PENDING RETEST — M196 did not enroll on passive-scan build; active-scan candidate ready |
 | Both BLE links simultaneously | NOT TESTED |
 | Disconnect/reconnect and held-input release | NOT TESTED |
 | Flash power-loss and maintenance recovery | NOT TESTED |

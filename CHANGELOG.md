@@ -24,6 +24,8 @@
   randomized descriptor mutation smoke tests.
 - Add an exact three-pulse LED prompt for keyboard passkey entry and a
   double-click Windows USB diagnostic collector.
+- Use active BLE scanning so HID identity fields supplied only in a scan
+  response can be discovered during enrollment and reconnect.
 - Harden BTstack callback routing, HIDS service preflight, connection-event and
   timeout ownership, exact rejected-bond cleanup, radio restart retries, USB
   suspend/resume, boot-protocol mouse masking, and overflow fail-safe behavior.
