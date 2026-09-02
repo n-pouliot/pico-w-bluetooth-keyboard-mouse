@@ -1,4 +1,4 @@
-# xbox-pico v0.1.0-beta.1
+# Pico W Bluetooth keyboard and mouse bridge v0.1.0-beta.1
 
 First public beta of the dual BLE HID bridge for the **original Raspberry Pi
 Pico W (RP2040)**.
@@ -15,7 +15,7 @@ Xbox Home dashboard.
 
 ## First installation
 
-1. Download `xbox-pico-v0.1.0-beta.1-pico-w.uf2`.
+1. Download `pico-w-bluetooth-keyboard-mouse-v0.1.0-beta.1.uf2`.
 2. Unplug the Pico W.
 3. Hold BOOTSEL while connecting it to a Windows PC.
 4. Release BOOTSEL when the `RPI-RP2` drive appears.
@@ -33,7 +33,7 @@ an empty role and does not erase an existing pairing.
 ## Replacing a paired device
 
 Flash the matching `MAINTENANCE` UF2, wait for its solid success LED, then flash
-the normal `xbox-pico-v0.1.0-beta.1-pico-w.uf2` again and pair the replacement.
+the normal `pico-w-bluetooth-keyboard-mouse-v0.1.0-beta.1.uf2` again and pair the replacement.
 
 - `pico_w_clear_keyboard_pairing_MAINTENANCE.uf2`: keyboard only
 - `pico_w_clear_mouse_pairing_MAINTENANCE.uf2`: mouse only

@@ -1,6 +1,6 @@
 # Attribution and project lineage
 
-`xbox-pico` is a derivative work built from Shiomachi Software's
+`pico-w-bluetooth-keyboard-mouse` is a derivative work built from Shiomachi Software's
 [`picow_ble_usb_hid_bridge`](https://github.com/shiomachisoft/picow_ble_usb_hid_bridge).
 
 The exact starting point was:

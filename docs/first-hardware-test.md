@@ -13,7 +13,7 @@ recovery, current, and latency stages remain pending.
 ## Stage 1 — ROM recovery and flash
 
 On a PC, enter BOOTSEL mode and confirm `RPI-RP2` appears. Copy the normal
-`xbox-pico-v0.1.0-beta.1-pico-w.uf2`. Expected: the drive disappears and the
+`pico-w-bluetooth-keyboard-mouse-v0.1.0-beta.1.uf2`. Expected: the drive disappears and the
 Pico reboots.
 
 Stop if `RPI-RP2` never appears, the copy fails, or the board becomes unusually

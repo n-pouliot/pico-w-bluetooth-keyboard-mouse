@@ -9,7 +9,7 @@ function Add-ReportLine {
     $lines.Add($Text)
 }
 
-Add-ReportLine 'xbox-pico Windows diagnostic'
+Add-ReportLine 'Pico W Bluetooth keyboard and mouse Windows diagnostic'
 Add-ReportLine ('Captured: ' + (Get-Date).ToString('yyyy-MM-dd HH:mm:ss zzz'))
 Add-ReportLine 'Expected runtime USB ID: VID_CAFE&PID_4008'
 Add-ReportLine ''
@@ -41,7 +41,7 @@ try {
 }
 
 Add-ReportLine ''
-Add-ReportLine 'xbox-pico runtime devices:'
+Add-ReportLine 'Pico W Bluetooth keyboard and mouse runtime devices:'
 try {
     $matches = @(Get-PnpDevice -PresentOnly -ErrorAction Stop | Where-Object {
         $_.InstanceId -match 'VID_CAFE&PID_4008'
@@ -81,7 +81,7 @@ $desktop = [Environment]::GetFolderPath('Desktop')
 if ([string]::IsNullOrWhiteSpace($desktop)) {
     $desktop = $PSScriptRoot
 }
-$reportPath = Join-Path $desktop ('xbox-pico-diagnostic-{0}.txt' -f
+$reportPath = Join-Path $desktop ('pico-w-bluetooth-keyboard-mouse-diagnostic-{0}.txt' -f
     (Get-Date).ToString('yyyyMMdd-HHmmss'))
 $lines | Set-Content -LiteralPath $reportPath -Encoding utf8
 

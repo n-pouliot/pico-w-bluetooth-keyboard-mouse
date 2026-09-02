@@ -13,7 +13,7 @@ label is **PUBLIC BETA**: the named Windows/Xbox paths passed, while untested
 devices and games remain unclaimed. Never describe it as production-ready or
 universally Xbox-compatible.
 
-Repository: `https://github.com/n-pouliot/xbox-pico` (public)
+Repository: `https://github.com/n-pouliot/pico-w-bluetooth-keyboard-mouse` (public)
 
 Branch: `main`
 
@@ -162,7 +162,7 @@ compiler remains Arm GNU because `PICO_COMPILER` is explicitly pinned.
 
 The exact packaged files are in `release/`; `release/SHA256SUMS.txt` is the
 authoritative manifest. The normal image is
-`xbox-pico-v0.1.0-beta.1-pico-w.uf2`; it is byte-identical to the physically
+`pico-w-bluetooth-keyboard-mouse-v0.1.0-beta.1.uf2`; it is byte-identical to the physically
 successful historical M196 compatibility image.
 
 ## Continuation checklist

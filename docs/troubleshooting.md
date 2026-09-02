@@ -13,7 +13,7 @@ procedure in [the flashing guide](beginner-flashing.md). Confirm that the file
 name is exactly:
 
 ```text
-xbox-pico-v0.1.0-beta.1-pico-w.uf2
+pico-w-bluetooth-keyboard-mouse-v0.1.0-beta.1.uf2
 ```
 
 Do not use one of the `MAINTENANCE` images as normal firmware.

@@ -1,6 +1,6 @@
-# xbox-pico — BLE keyboard and mouse bridge for Raspberry Pi Pico W
+# Pico W Bluetooth keyboard and mouse bridge for Xbox, Windows, and USB hosts
 
-[![Host tests](https://github.com/n-pouliot/xbox-pico/actions/workflows/host-tests.yml/badge.svg)](https://github.com/n-pouliot/xbox-pico/actions/workflows/host-tests.yml)
+[![Host tests](https://github.com/n-pouliot/pico-w-bluetooth-keyboard-mouse/actions/workflows/host-tests.yml/badge.svg)](https://github.com/n-pouliot/pico-w-bluetooth-keyboard-mouse/actions/workflows/host-tests.yml)
 ![Release](https://img.shields.io/badge/release-v0.1.0--beta.1-orange)
 ![Hardware](https://img.shields.io/badge/hardware-original_Pico_W-A22846)
 ![License](https://img.shields.io/badge/license-non--commercial-blue)
@@ -75,7 +75,7 @@ current release target.
 Start on a Windows PC so input can be checked before moving the Pico to an Xbox.
 
 1. Download
-   [`xbox-pico-v0.1.0-beta.1-pico-w.uf2`](https://github.com/n-pouliot/xbox-pico/releases/download/v0.1.0-beta.1/xbox-pico-v0.1.0-beta.1-pico-w.uf2).
+   [`pico-w-bluetooth-keyboard-mouse-v0.1.0-beta.1.uf2`](https://github.com/n-pouliot/pico-w-bluetooth-keyboard-mouse/releases/download/v0.1.0-beta.1/pico-w-bluetooth-keyboard-mouse-v0.1.0-beta.1.uf2).
 2. Unplug the Pico W. Hold its white **BOOTSEL** button while connecting it to
    the PC.
 3. Release BOOTSEL when the `RPI-RP2` drive appears.

@@ -25,7 +25,7 @@ for every role, which was narrower than HOGP's mandatory unauthenticated Level
 pairing with a 7- to 16-byte key while retaining the strict keyboard policy.
 
 With the compatibility image now distributed as
-`xbox-pico-v0.1.0-beta.1-pico-w.uf2` (SHA-256
+`pico-w-bluetooth-keyboard-mouse-v0.1.0-beta.1.uf2` (SHA-256
 `7FA5350C1624AB35790336BA7B0E118A837E3831F66C1D5CA23C2DB2306C3A78`), the
 M196 paired and produced mouse input on Windows. The LED showed two pulses
 while only the mouse was ready, then solid after the saved MX Mechanical

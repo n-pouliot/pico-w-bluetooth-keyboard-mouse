@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Please use GitHub's private
-[security advisory form](https://github.com/n-pouliot/xbox-pico/security/advisories/new)
+[security advisory form](https://github.com/n-pouliot/pico-w-bluetooth-keyboard-mouse/security/advisories/new)
 for a suspected vulnerability. Do not publish Bluetooth keys, device addresses,
 private diagnostics, or a working exploit in a public issue.
 

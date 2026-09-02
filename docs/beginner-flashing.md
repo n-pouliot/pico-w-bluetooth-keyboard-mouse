@@ -7,7 +7,7 @@ Start with a Windows PC. Do not make your first test on the Xbox.
 - an original Raspberry Pi Pico W;
 - a USB **data** cable, not a charge-only cable;
 - the cable's small Micro-USB plug for the Pico W;
-- `xbox-pico-v0.1.0-beta.1-pico-w.uf2` from the repository's
+- `pico-w-bluetooth-keyboard-mouse-v0.1.0-beta.1.uf2` from the repository's
   `release` folder.
 
 The Micro-USB socket is the only USB socket on the Pico W. BOOTSEL is the small
@@ -24,7 +24,7 @@ white pushbutton on the top of the board, close to that socket.
 6. Windows should show a removable drive named `RPI-RP2`. This drive is the
    RP2040 ROM bootloader, not the normal bridge firmware.
 7. Copy exactly
-   `xbox-pico-v0.1.0-beta.1-pico-w.uf2` onto `RPI-RP2`.
+   `pico-w-bluetooth-keyboard-mouse-v0.1.0-beta.1.uf2` onto `RPI-RP2`.
 8. The drive should disappear automatically. The Pico reboots into the copied
    firmware; do not unplug it while the copy is in progress.
 9. The onboard LED should begin a pattern. This behavior passed on the tested
@@ -104,7 +104,7 @@ the flash-connected BOOTSEL signal while Bluetooth runs on the other core.
 4. Disconnect the Pico.
 5. Re-enter `RPI-RP2` with BOOTSEL.
 6. Copy the normal
-   `xbox-pico-v0.1.0-beta.1-pico-w.uf2` again.
+   `pico-w-bluetooth-keyboard-mouse-v0.1.0-beta.1.uf2` again.
 7. Put only the intended replacement device into pairing mode during the new
    180-second empty-role window.
 

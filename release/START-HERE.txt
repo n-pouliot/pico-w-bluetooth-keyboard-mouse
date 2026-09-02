@@ -1,4 +1,4 @@
-XBOX-PICO FIRST SETUP (ORIGINAL RASPBERRY PI PICO W)
+PICO W BLUETOOTH KEYBOARD + MOUSE — FIRST SETUP
 ====================================================
 
 You need only:
@@ -15,7 +15,7 @@ Do this on the Windows PC first, not on the Xbox:
 1. Keep the keyboard and mouse off. Unplug the Pico W.
 2. Hold the Pico's white BOOTSEL button while plugging it into the PC.
 3. Release BOOTSEL when the RPI-RP2 drive appears.
-4. Copy xbox-pico-v0.1.0-beta.1-pico-w.uf2 to RPI-RP2.
+4. Copy pico-w-bluetooth-keyboard-mouse-v0.1.0-beta.1.uf2 to RPI-RP2.
 5. The drive disappears and the Pico reboots. The LED should blink slowly.
 6. Do NOT open Windows Bluetooth settings.
 7. Put the keyboard into pairing mode. For an MX Mechanical, hold the chosen
@@ -36,7 +36,7 @@ normally and retry only the missing device. A short Easy-Switch press does not
 start pairing; hold the key until rapid blinking.
 
 If Windows detection is unclear, double-click RUN-WINDOWS-DIAGNOSTIC.cmd in
-this folder. It saves xbox-pico-diagnostic-*.txt to the Desktop. Share that
+this folder. It saves pico-w-bluetooth-keyboard-mouse-diagnostic-*.txt to the Desktop. Share that
 small file along with the Pico LED pattern and exact mouse model.
 
 Do not flash a MAINTENANCE file for first setup.

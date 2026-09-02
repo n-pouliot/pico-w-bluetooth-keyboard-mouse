@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve `xbox-pico`. Device compatibility reports are
+Thanks for helping improve `pico-w-bluetooth-keyboard-mouse`. Device compatibility reports are
 particularly useful because BLE HID Report Maps and pairing policies vary by
 manufacturer.
 

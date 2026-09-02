@@ -1,7 +1,7 @@
-xbox-pico is derived from Shiomachi Software's picow_ble_usb_hid_bridge at
+pico-w-bluetooth-keyboard-mouse is derived from Shiomachi Software's picow_ble_usb_hid_bridge at
 commit 2c6a303d1f172e56b271283af978efdcc483a389. That project is based on
 dev_hid_composite and BlueKitchen's hog_host_demo and uses BlueKitchen's
-BTstack. xbox-pico remains subject to the licenses reproduced below.
+BTstack. pico-w-bluetooth-keyboard-mouse remains subject to the licenses reproduced below.
 
 //////////////////////////////////////////////////////////////////////////////
 // BlueKitchen's BTstack supplemental license for Raspberry Pi Pico series
