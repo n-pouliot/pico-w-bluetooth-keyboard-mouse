@@ -4,20 +4,24 @@ XBOX-PICO FIRST SETUP (ORIGINAL RASPBERRY PI PICO W)
 You need only:
 - the original Pico W board;
 - a known USB data cable with a Micro-USB plug; and
-- the charged MX Mechanical plus the separate BLE mouse.
+- a charged BLE HID keyboard that supports entering a displayed passkey; and
+- a charged BLE HID mouse.
+
+The physically tested examples are the Logitech MX Mechanical keyboard and
+Logitech M196 mouse.
 
 Do this on the Windows PC first, not on the Xbox:
 
 1. Keep the keyboard and mouse off. Unplug the Pico W.
 2. Hold the Pico's white BOOTSEL button while plugging it into the PC.
 3. Release BOOTSEL when the RPI-RP2 drive appears.
-4. Copy pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2 to RPI-RP2.
+4. Copy xbox-pico-v0.1.0-beta.1-pico-w.uf2 to RPI-RP2.
 5. The drive disappears and the Pico reboots. The LED should blink slowly.
 6. Do NOT open Windows Bluetooth settings.
-7. Turn on the MX Mechanical. Hold Easy-Switch key 3 for about 3 seconds,
-   until its slot-3 light blinks rapidly.
+7. Put the keyboard into pairing mode. For an MX Mechanical, hold the chosen
+   Easy-Switch key for about 3 seconds until its light blinks rapidly.
 8. Watch the Pico LED. When it repeats THREE SHORT FLASHES AND A PAUSE,
-   type 739241 on the MX Mechanical and press Enter.
+   type 739241 on that keyboard and press Enter.
 9. Wait for one short Pico flash every 2 seconds: keyboard ready.
 10. Put only the separate BLE mouse into its documented pairing mode.
     Do not use the G502 LIGHTSPEED; it is not a BLE mouse.
@@ -39,11 +43,9 @@ Do not flash a MAINTENANCE file for first setup.
 
 LOGITECH M196 RESULT (2026-09-02)
 --------------------------------
-The current normal PRE_HARDWARE_TEST file includes the M196 fix and physically
-passed direct pairing, movement, and simultaneous basic use with the MX
-Mechanical on Windows. Use the normal file in step 4. The ACTIVE_SCAN_TEST and
-DIAGNOSTIC files are superseded investigation builds; do not choose them for a
-fresh setup.
+The current v0.1.0-beta.1 file includes the M196 fix and physically passed
+direct pairing, movement, and simultaneous basic use with the MX Mechanical on
+Windows. Use that normal file in step 4.
 
 The M196 pairing procedure is exactly: turn it on, then hold its bottom
 on/off/pairing button for 3 seconds until its LED blinks. The Pico may briefly

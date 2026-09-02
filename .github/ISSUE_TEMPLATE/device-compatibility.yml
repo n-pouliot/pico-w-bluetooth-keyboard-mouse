@@ -1,0 +1,56 @@
+name: Device compatibility report
+description: Record a working or incompatible BLE keyboard/mouse
+title: "[Device]: "
+labels: [compatibility]
+body:
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options:
+        - Works
+        - Partially works
+        - Does not pair
+        - Pairs but sends no usable input
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Exact device model
+      placeholder: Logitech M196 / M-R0114
+    validations:
+      required: true
+  - type: dropdown
+    id: role
+    attributes:
+      label: Role
+      options: [Keyboard, Mouse]
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware release and SHA-256
+    validations:
+      required: true
+  - type: input
+    id: host
+    attributes:
+      label: Tested USB host
+      placeholder: Windows 11 or Xbox Series X / exact game
+    validations:
+      required: true
+  - type: textarea
+    id: pairing
+    attributes:
+      label: Pairing procedure and LED behavior
+    validations:
+      required: true
+  - type: textarea
+    id: coverage
+    attributes:
+      label: Input and reconnect coverage
+      description: List tested keys, buttons, axes, wheels, simultaneous use, and power-cycle reconnect.
+    validations:
+      required: true

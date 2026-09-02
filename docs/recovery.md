@@ -35,7 +35,7 @@ port before suspecting hardware.
 ## Wrong firmware or corrupted application
 
 Repeat the BOOTSEL procedure and copy
-`pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2`. There is no need to erase
+`xbox-pico-v0.1.0-beta.1-pico-w.uf2`. There is no need to erase
 all flash first. Do not use a flash-nuke image as a routine repair step because
 it erases bonding state and adds risk without helping a normal UF2 overwrite.
 

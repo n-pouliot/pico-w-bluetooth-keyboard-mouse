@@ -2,7 +2,7 @@
 
 ## Current gate status
 
-**HARDWARE TEST IN PROGRESS under the PRE_HARDWARE_TEST label.**
+**PUBLIC BETA (`v0.1.0-beta.1`) with hardware testing in progress.**
 
 All available software-only gates pass. Physical BOOTSEL flashing, the MX
 Mechanical BLE-to-Pico-to-Windows keyboard path, Logitech M196 mouse input, and
@@ -86,13 +86,14 @@ warning occurred.
 
 | Packaged file | Bytes | SHA-256 |
 |---|---:|---|
-| `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` | 940,032 | `7FA5350C1624AB35790336BA7B0E118A837E3831F66C1D5CA23C2DB2306C3A78` |
-| `pico_w_dual_ble_hid_bridge_M196_ACTIVE_SCAN_TEST.uf2` | 939,520 | `E40CFF334A855924A02FBE1B62E1FE35740F93F7E81F8BBF742448766082383D` |
-| `pico_w_dual_ble_hid_bridge_M196_DIAGNOSTIC.uf2` | 940,032 | `15244EB726DFF6CF5014C345EF4EB9BB79D09AE46105B05F61CD666499CA4E14` |
-| `pico_w_dual_ble_hid_bridge_M196_COMPATIBILITY_TEST.uf2` | 940,032 | `7FA5350C1624AB35790336BA7B0E118A837E3831F66C1D5CA23C2DB2306C3A78` |
+| `xbox-pico-v0.1.0-beta.1-pico-w.uf2` | 940,032 | `7FA5350C1624AB35790336BA7B0E118A837E3831F66C1D5CA23C2DB2306C3A78` |
 | `pico_w_clear_keyboard_pairing_MAINTENANCE.uf2` | 788,480 | `7C83902AC8CEE984B2B6E0415232559616EED425F2C6F843ED37E4CABA62D65C` |
 | `pico_w_clear_mouse_pairing_MAINTENANCE.uf2` | 788,480 | `A32CE5B2CE34677EB433381DB319CBCDD8E5387DEF1F3614ED8D2B77610CAE65` |
 | `pico_w_clear_all_pairings_MAINTENANCE.uf2` | 786,944 | `7AC4A193BCF73AB2BE4DCFC97AA8E5C4D9412CC181D1068A69F2233B93D6DC5D` |
+
+The active-scan, diagnostic, and M196 compatibility filenames were development
+artifacts. Their hashes remain in Git history and the handoff, but only the
+successful byte-identical beta image is distributed in the public release set.
 
 The original normal ELF reported 473,664 B `text`, 0 B `data`, and 46,072 B
 `bss`. The current normal/successful compatibility ELF reports
@@ -116,11 +117,11 @@ misrepresented as simulated proof.
 | Real BLE keyboard | PARTIAL PASS — MX Mechanical paired and typed through Pico |
 | Real BLE mouse | PARTIAL PASS — M196 paired and produced cursor input with the compatibility build |
 | Both BLE links simultaneously | PARTIAL PASS — both worked and solid-ready LED was observed; 15-minute stress pending |
-| Disconnect/reconnect and held-input release | NOT TESTED |
+| Disconnect/reconnect and held-input release | PARTIAL PASS — both roles reconnected after moving Pico from PC to Xbox; repeated and held-input release tests pending |
 | Flash power-loss and maintenance recovery | NOT TESTED |
 | USB configured/unconfigured/suspend current | NOT TESTED |
 | End-to-end latency | NOT TESTED |
 | Xbox and game behavior | PARTIAL PASS — keyboard and mouse work in The Sims 4 on Xbox Series X; dashboard mouse rejection is expected; broader titles pending |
 
-Run these in order using `docs/first-hardware-test.md`. Any failed hardware
-stage keeps the PRE_HARDWARE_TEST label and must be recorded rather than hidden.
+Run the remaining checks using `docs/first-hardware-test.md`. Any failed stage
+must be recorded and may block promotion from beta to a stable release.

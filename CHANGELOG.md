@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — dual BLE HID bridge
+## Unreleased
+
+## 0.1.0-beta.1 — 2026-09-02
 
 - Target the original Raspberry Pi Pico W and expose a static, boot-capable USB
   keyboard plus a static, boot-capable USB mouse on separate interfaces.
@@ -34,12 +36,12 @@
 - Harden BTstack callback routing, HIDS service preflight, connection-event and
   timeout ownership, exact rejected-bond cleanup, radio restart retries, USB
   suspend/resume, boot-protocol mouse masking, and overflow fail-safe behavior.
-- Add four reproducible, SHA-256-recorded PRE_HARDWARE_TEST/maintenance UF2
-  artifacts and remove stale single-device binaries.
+- Add reproducible, SHA-256-recorded normal/maintenance UF2 artifacts and
+  remove stale single-device and investigation binaries from the public set.
 - Add architecture research, safety/recovery guidance, reproducible build
   instructions, beginner flashing instructions, and a staged hardware plan.
 
-This revision remains **PRE-HARDWARE TEST** while reconnect stress, complete
+This revision is a **public beta** while reconnect stress, complete
 USB inspection, power/current, latency, and broad game behavior are still
 pending. Pico W flashing, both intended BLE peripherals, simultaneous basic PC
 input, and keyboard-plus-mouse input in The Sims 4 on Xbox Series X have

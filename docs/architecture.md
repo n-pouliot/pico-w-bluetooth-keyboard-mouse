@@ -131,14 +131,17 @@ The USB interfaces request a 1 ms full-speed polling interval. Once a BLE notifi
 - relative mouse only, five buttons, vertical wheel, horizontal pan;
 - no BLE keyboard LED-output forwarding;
 - experimental private-use VID/PID pending an authorized production identity;
-- no physical Pico W, PC enumeration, peripheral, current, latency, or Xbox evidence yet;
+- Pico W, PC input, and one Xbox game have physical evidence; exact descriptor
+  capture, current, latency, extended stress, and broader devices/games remain;
 - Xbox support remains title-specific even if the console accepts the USB device.
 
 ## Required release evidence
 
 Implementation does not become a release merely because it compiles. Required evidence includes host parser/persistence/mailbox tests, malformed-input mutation tests, descriptor validation, compiler warnings, static analysis, an independent code review, an independent tester build, adversarial review with all HIGH findings resolved, a clean final Pico W build, size/map/flash-bank-overlap checks, and independently verified recovery instructions.
 
-The resulting UF2 may be labelled only `PRE_HARDWARE_TEST` until Pico W and PC tests are performed. Xbox behavior remains `NOT TESTED` until the user completes the staged PC-first hardware plan.
+The resulting UF2 was initially labelled `PRE_HARDWARE_TEST`. After Pico W,
+Windows, and title-specific Xbox Series X tests passed, it was promoted to the
+`v0.1.0-beta.1` public beta. Untested devices and games remain unclaimed.
 
 ## Research records
 

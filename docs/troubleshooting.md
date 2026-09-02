@@ -1,7 +1,7 @@
 # Troubleshooting
 
-This firmware is still **PRE-HARDWARE TEST**. Start every investigation on a
-normal PC. Do not move to an Xbox until the staged PC tests pass.
+This firmware is a **public beta**. Start every investigation on a normal PC.
+Do not use the Xbox as the first diagnostic environment.
 
 ## Nothing happens after copying the UF2
 
@@ -13,7 +13,7 @@ procedure in [the flashing guide](beginner-flashing.md). Confirm that the file
 name is exactly:
 
 ```text
-pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2
+xbox-pico-v0.1.0-beta.1-pico-w.uf2
 ```
 
 Do not use one of the `MAINTENANCE` images as normal firmware.

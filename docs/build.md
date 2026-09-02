@@ -108,7 +108,7 @@ The current integrated Release build reports:
 
 | Image | `text` | `data` | `bss` | UF2 file |
 |---|---:|---:|---:|---:|
-| Normal bridge | 473,664 B | 0 B | 46,072 B | 939,520 B |
+| Normal bridge | 474,040 B | 0 B | 46,080 B | 940,032 B |
 | Clear keyboard | 398,208 B | 0 B | 19,460 B | 788,480 B |
 | Clear mouse | 398,208 B | 0 B | 19,460 B | 788,480 B |
 | Clear all | 397,448 B | 0 B | 19,460 B | 786,944 B |
@@ -119,10 +119,11 @@ includes the explicit 8 KiB Core-1 stack and its 128-byte canary. This leaves
 substantial headroom, although runtime stack high-water marks remain a physical
 test item.
 
-The four packaged same-day UF2 hashes are recorded in
-`release/SHA256SUMS.txt`. Two independent empty build directories produced
-identical hashes. UF2 metadata embeds the date, so cross-date byte identity is
-not claimed.
+The four current public UF2 hashes are recorded in `release/SHA256SUMS.txt`.
+The initial normal and maintenance set was reproduced in two independent empty
+build directories. The M196 follow-up normal image passed a pinned rebuild but
+was not independently rebuilt twice. UF2 metadata embeds the date, so
+cross-date byte identity is not claimed.
 
 Major fixed limits:
 

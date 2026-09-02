@@ -1,0 +1,66 @@
+name: Firmware bug
+description: Report reproducible bridge, pairing, input, or recovery behavior
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include Bluetooth keys, private addresses, or unreviewed diagnostics.
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware
+      description: Filename, release/tag, commit, and SHA-256 if available.
+    validations:
+      required: true
+  - type: input
+    id: board
+    attributes:
+      label: Board
+      placeholder: Original Raspberry Pi Pico W / RP2040
+    validations:
+      required: true
+  - type: input
+    id: devices
+    attributes:
+      label: Keyboard and mouse
+      description: Exact manufacturer and model for each connected peripheral.
+    validations:
+      required: true
+  - type: input
+    id: host
+    attributes:
+      label: USB host
+      placeholder: Windows 11 or Xbox Series X plus exact game
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Number every action from power-on or BOOTSEL flash.
+    validations:
+      required: true
+  - type: input
+    id: led
+    attributes:
+      label: Pico LED pattern
+      description: Solid, ordinary ready pattern, or long pulse plus short-pulse count.
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed and expected behavior
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checks
+      options:
+        - label: I used an original Pico W and a known USB data cable.
+          required: true
+        - label: I reviewed this report for private information.
+          required: true

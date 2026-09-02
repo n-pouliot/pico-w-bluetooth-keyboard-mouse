@@ -15,11 +15,11 @@ Labels mean:
 | Normal firmware does not access ROM boot, OTP, fuses, debug lock, voltage, or overclock controls | VERIFIED | Source/static inspection. |
 | BTstack build has two HCI, GATT, and HIDS client pool entries | VERIFIED | `src/btstack_config.h` and clean build. |
 | Pinned BTstack represents HIDS clients per connection/CID | VERIFIED | `hids_client.c/.h` source inspection. |
-| Two active HOGP links work reliably through CYW43439 on a physical Pico W | UNVERIFIED | Source capacities and vendor information support feasibility; RF/controller behavior requires hardware. |
+| Two active HOGP links work through CYW43439 on a physical Pico W | PARTIAL PASS | MX Mechanical and M196 operated simultaneously on Windows and in The Sims 4 on Xbox; extended stress remains pending. |
 | Serialized HIDS discovery avoids overlapping shared Report Map allocation | VERIFIED | Connection manager permits one active connect/security/discovery operation; pinned allocator was inspected. |
-| Static USB topology is two HID interfaces, endpoints `0x81` and `0x82`, total configuration length 59 | VERIFIED | Compile-time assertions, source inspection, cross-build. Physical enumeration still unverified. |
+| Static USB topology is two HID interfaces, endpoints `0x81` and `0x82`, total configuration length 59 | VERIFIED / PARTIAL PASS | Compile-time assertions, source inspection, cross-build, and real input passed. Full physical descriptor capture remains pending. |
 | TinyUSB supports the chosen two-interface HID topology | DOCUMENTED | Pinned TinyUSB macros/examples and successful compilation. |
-| A normal PC accepts and uses this exact descriptor topology | UNVERIFIED | Requires descriptor capture and functional PC test. |
+| A normal PC accepts and uses this exact descriptor topology | PARTIAL PASS | Windows 11 accepted simultaneous keyboard and mouse input; full descriptor capture remains pending. |
 | Xbox Series X accepts this exact composite HID device | PARTIAL PASS | Keyboard navigation worked, and both keyboard and M196 mouse input worked through the Pico inside The Sims 4. Console software version and broader coverage remain unrecorded. |
 | A particular Xbox game accepts keyboard and mouse input | VERIFIED for one title | The Sims 4 physically accepted both roles on Xbox Series X. Title-specific behavior remains outside firmware control. |
 | MX Mechanical and Logitech M196 are BLE HOGP devices with one supported HIDS service and compatible maps | PARTIAL PASS | Both physically paired and sent their respective input through the Pico; full feature coverage and extended stress remain pending. |

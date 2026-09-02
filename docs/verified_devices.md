@@ -24,12 +24,14 @@ for every role, which was narrower than HOGP's mandatory unauthenticated Level
 2 host capability. The compatibility image accepts encrypted bonded mouse
 pairing with a 7- to 16-byte key while retaining the strict keyboard policy.
 
-With `pico_w_dual_ble_hid_bridge_M196_COMPATIBILITY_TEST.uf2` (SHA-256
+With the compatibility image now distributed as
+`xbox-pico-v0.1.0-beta.1-pico-w.uf2` (SHA-256
 `7FA5350C1624AB35790336BA7B0E118A837E3831F66C1D5CA23C2DB2306C3A78`), the
 M196 paired and produced mouse input on Windows. The LED showed two pulses
 while only the mouse was ready, then solid after the saved MX Mechanical
 reconnected; the user confirmed both devices worked. Button/wheel coverage,
-15-minute simultaneous stress and power-cycle reconnect remain pending. The
+15-minute simultaneous stress and repeated reconnect testing remain pending.
+Both saved roles reconnected after the Pico moved from the PC to Xbox, and the
 same M196 then produced mouse input through the Pico in The Sims 4 on Xbox
 Series X. The Xbox dashboard not reacting to the mouse is expected platform
 behavior, not a failed bridge test.

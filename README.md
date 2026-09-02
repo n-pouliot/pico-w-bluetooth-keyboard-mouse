@@ -1,212 +1,248 @@
-# xbox-pico
+# xbox-pico — BLE keyboard and mouse bridge for Raspberry Pi Pico W
 
-`xbox-pico` is experimental firmware for the original Raspberry Pi Pico W. It
-connects to one supported BLE keyboard and one supported BLE mouse at the same
-time, then exposes a fixed, ordinary USB keyboard and USB mouse through the
-Pico W's Micro-USB port.
+[![Host tests](https://github.com/n-pouliot/xbox-pico/actions/workflows/host-tests.yml/badge.svg)](https://github.com/n-pouliot/xbox-pico/actions/workflows/host-tests.yml)
+![Release](https://img.shields.io/badge/release-v0.1.0--beta.1-orange)
+![Hardware](https://img.shields.io/badge/hardware-original_Pico_W-A22846)
+![License](https://img.shields.io/badge/license-non--commercial-blue)
 
-> Status: **HARDWARE TEST IN PROGRESS** under the deliberately conservative
-> **PRE-HARDWARE TEST** label. Pico W flashing, MX Mechanical keyboard input,
-> Logitech M196 mouse input, and basic simultaneous use have passed on a
-> Windows PC. Both keyboard and mouse input have also passed on an Xbox Series
-> X in The Sims 4. Reconnect stress and broader game compatibility remain
-> unverified. Do not interpret this title-specific result as a universal Xbox
-> compatibility claim.
+Turn one Bluetooth Low Energy keyboard and one BLE mouse into ordinary wired
+USB HID devices using an original Raspberry Pi Pico W. Both peripherals connect
+wirelessly to the Pico W; the Pico connects to a Windows PC, Xbox Series X|S,
+or another USB host with one Micro-USB data cable.
 
-This project does not emulate an Xbox controller, use Xbox authentication,
-send proprietary commands, mount storage during normal operation, or modify
-the console. An Xbox game still decides whether it accepts keyboard and mouse
-input.
+The tested setup uses a Logitech MX Mechanical keyboard and Logitech M196 mouse.
+Both work simultaneously on Windows 11 and in The Sims 4 on Xbox Series X.
 
-## Hardware
+> **Public beta:** the tested path works, but compatibility is not universal.
+> Xbox mouse support is game-specific, not every BLE peripheral exposes a
+> supported HID descriptor, and reconnect/stress/current testing is ongoing.
 
-Required:
+This project is a derivative of Shiomachi Software's
+[`picow_ble_usb_hid_bridge`](https://github.com/shiomachisoft/picow_ble_usb_hid_bridge),
+using tag [`20260830_7`](https://github.com/shiomachisoft/picow_ble_usb_hid_bridge/tree/20260830_7)
+/ commit [`2c6a303`](https://github.com/shiomachisoft/picow_ble_usb_hid_bridge/commit/2c6a303d1f172e56b271283af978efdcc483a389)
+as its foundation. The original history and license are preserved. See
+[Origin and credit](#origin-and-credit) and [NOTICE.md](NOTICE.md).
 
-- one original Raspberry Pi Pico W (`pico_w`, RP2040);
-- one USB data cable with Micro-USB for the Pico W and the appropriate plug for
-  the PC or console;
+## What this solves
+
+- Use a multi-device BLE keyboard on an Xbox without moving its USB receiver.
+- Pair a separate BLE mouse to the same Pico W.
+- Present two fixed, standard USB interfaces from power-on: one keyboard and
+  one mouse.
+- Reconnect both saved devices automatically after power cycles.
+- Avoid soldering, breadboards, headers, drivers, or a starter kit.
+
+It does **not** emulate an Xbox controller, bypass licensed-accessory
+authentication, or modify the console. A game must explicitly support keyboard
+and mouse input.
+
+```mermaid
+flowchart LR
+    K[BLE keyboard] -->|Bluetooth LE HOGP| P[Original Pico W]
+    M[BLE mouse] -->|Bluetooth LE HOGP| P
+    P -->|USB keyboard + USB mouse| H[Windows / Xbox / USB host]
+```
+
+## Tested hardware
+
+| Component | Result |
+|---|---|
+| Original Raspberry Pi Pico W / RP2040 | Pass |
+| Logitech MX Mechanical, Easy-Switch slot 3 | Pairing, reconnect, and input pass |
+| Logitech M196 / M-R0114 | Pairing, reconnect, and input pass |
+| Windows 11 | Keyboard, mouse, and simultaneous basic input pass |
+| Xbox Series X | Keyboard navigation pass |
+| The Sims 4 on Xbox Series X | Keyboard and mouse input pass |
+
+The Xbox Home dashboard does not provide general mouse navigation. Test the
+mouse inside a game whose Xbox Store capabilities include `Console Keyboard &
+Mouse`.
+
+## What you need
+
+- one **original Raspberry Pi Pico W** (`pico_w`, RP2040);
+- one known-good Micro-USB **data** cable;
 - one BLE HID keyboard; and
 - one BLE HID mouse.
 
-No headers, soldering, breadboard, GPIO wiring, external power supply, voltage
-change, or overclock is used. Power the board only through its normal Micro-USB
-connection for this project. Do not attach a second 5 V source.
+You do not need the Pico starter kit, headers, soldering, GPIO wiring, a UART
+adapter, an external power supply, or a second keyboard. Pico 2 W is not the
+current release target.
 
-Pico 2 W is not the release target. Do not flash this Pico W build to a
-different board.
+## Install and pair
 
-## What the host sees
+Start on a Windows PC so input can be checked before moving the Pico to an Xbox.
 
-USB descriptors are static from power-on:
+1. Download
+   [`xbox-pico-v0.1.0-beta.1-pico-w.uf2`](https://github.com/n-pouliot/xbox-pico/releases/download/v0.1.0-beta.1/xbox-pico-v0.1.0-beta.1-pico-w.uf2).
+2. Unplug the Pico W. Hold its white **BOOTSEL** button while connecting it to
+   the PC.
+3. Release BOOTSEL when the `RPI-RP2` drive appears.
+4. Copy the UF2 file to `RPI-RP2`. The drive disappears automatically and the
+   Pico reboots; that is expected.
+5. Do not pair the keyboard or mouse in Windows Bluetooth settings. They pair
+   directly with the Pico.
+6. Put the keyboard into pairing mode. For an MX Mechanical, hold the desired
+   Easy-Switch key for about three seconds until it blinks rapidly.
+7. When the Pico repeats three short LED flashes and a pause, type `739241` on
+   that keyboard and press Enter.
+8. Put the BLE mouse into its documented pairing mode. For an M196, hold its
+   bottom on/off/pairing button for three seconds until its LED blinks.
+9. Wait for the Pico LED to become solid green. Test keyboard and mouse input on
+   the PC, then move the same Pico and cable to the target USB host.
 
-| USB function | Interface | IN endpoint | Packet | Polling |
-|---|---:|---:|---:|---:|
-| Boot-capable keyboard | 0 | `0x81` | 8 bytes | 1 ms |
-| Boot-capable mouse | 1 | `0x82` | up to 5 bytes | 1 ms |
+The initial enrollment window lasts three minutes. If it expires, unplug and
+reconnect the Pico normally—without BOOTSEL—and retry the missing device.
+Pairings persist across Pico power cycles.
 
-There are no USB Report IDs because each function has its own interface and
-endpoint. BLE devices never change the USB descriptors and reconnecting does
-not intentionally re-enumerate USB.
+For screenshots-level detail and recovery steps, follow the
+[beginner flashing guide](docs/beginner-flashing.md) or open
+[`release/START-HERE.txt`](release/START-HERE.txt).
 
-Core 0 services TinyUSB. Core 1 owns BTstack and the CYW43439 radio. The two
-roles have separate handles, HIDS CIDs, parsed report plans, retry state,
-generations, and cross-core mailboxes. Connection creation and Report Map
-discovery are serialized, but both accepted BLE links remain active together.
+## Re-pair or replace a device
 
-See [the architecture decision record](docs/architecture.md) for the detailed
-design and alternatives considered.
+Maintenance images erase saved state; they do not run the normal bridge or pair
+the replacement themselves.
 
-## Supported input subset
+| Replace | First flash | Then |
+|---|---|---|
+| Keyboard only | [`pico_w_clear_keyboard_pairing_MAINTENANCE.uf2`](release/pico_w_clear_keyboard_pairing_MAINTENANCE.uf2) | Reflash normal firmware and pair the keyboard |
+| Mouse only | [`pico_w_clear_mouse_pairing_MAINTENANCE.uf2`](release/pico_w_clear_mouse_pairing_MAINTENANCE.uf2) | Reflash normal firmware and pair the mouse |
+| Both devices | [`pico_w_clear_all_pairings_MAINTENANCE.uf2`](release/pico_w_clear_all_pairings_MAINTENANCE.uf2) | Reflash normal firmware and pair both |
 
-Keyboard support:
+Enter BOOTSEL mode for each flash. Wait for a solid LED after a maintenance
+image, then reflash the normal beta UF2. Never leave a maintenance image
+installed. If power is interrupted during a clear operation or it shows a rapid
+failure blink, run **clear all** before returning to normal firmware.
 
-- keyboard/keypad HID usage page, modifiers, ordinary arrays, function,
-  navigation, and keypad keys;
-- multiple BLE Report IDs;
-- compatible one-bit NKRO maps, translated to canonical USB 6KRO;
-- HID ErrorRollOver when more than six non-modifier keys are down.
+## LED reference
 
-Mouse support:
-
-- five buttons;
-- signed relative 8-bit or 16-bit X/Y;
-- vertical wheel and horizontal pan;
-- large deltas split across bounded `[-127, 127]` USB reports; accumulator
-  overflow is treated as a fault rather than silently wrapping.
-
-Deliberate limitations:
-
-- exactly one HIDS service per peripheral;
-- no absolute mouse/digitizer input;
-- no consumer/media, system-control, macro, or vendor-key forwarding;
-- no keyboard lock-LED output forwarding;
-- keyboards that use the common host-displays/six-digit-code workflow enter the
-  fixed code `739241` and then press Enter;
-- mice and other no-input/no-output peripherals use encrypted, bonded Just
-  Works with a standards-compatible 7- to 16-byte key; LE Secure Connections
-  is preferred but legacy pairing is accepted for mouse interoperability;
-- no Numeric Comparison, Pico-entered passkey, or OOB workflow; keyboards still
-  require authenticated LE Secure Connections with a 16-byte key;
-- a malformed, oversized, mixed keyboard/mouse, or unsupported Report Map is
-  rejected rather than guessed.
-
-## First-time enrollment
-
-The normal firmware does not read BOOTSEL at runtime. When either role has no
-saved record, a 180-second enrollment window opens after USB has configured and
-Bluetooth starts.
-
-1. Test on a PC first, not on the Xbox.
-2. Keep other nearby unpaired HID devices out of pairing mode.
-3. Enroll the keyboard first. For an MX Mechanical using free Easy-Switch slot
-   3, hold key `3` for about three seconds until its LED blinks rapidly. Wait
-   until the Pico gives three short flashes followed by a pause, then type
-   `739241` on that keyboard and press Enter. Do not add it in Windows Bluetooth
-   settings: the keyboard is pairing directly with the Pico.
-4. Put the intended BLE mouse into pairing mode. The Logitech G502 LIGHTSPEED
-   is not a BLE mouse and cannot fill this role; use the separate BLE mouse.
-5. The Pico connects to one candidate at a time, retrieves and validates its
-   HID Report Map, classifies it from standards-based usages, and stores it only
-   in the matching empty role.
-6. If the window expires before an empty role is filled, unplug and reconnect
-   the Pico to open another bounded window for that still-empty role.
-
-Outside an enrollment window, unknown advertisers are ignored. Saved identities
-must re-encrypt with an acceptable existing bond: authenticated 16-byte Secure
-Connections for keyboards, or encrypted 7- to 16-byte bonding for mice. A
-missing key does not silently authorize re-pairing.
-
-The fixed keyboard code is public, not a password. Security depends on the
-bounded enrollment window and putting only the intended device into pairing
-mode. Mouse Just Works pairing has no authenticated display or input channel,
-so user presence cannot prove the mouse's identity.
-
-## LED meanings
-
-The core ready-state patterns have been observed on the test Pico W:
+The original Pico W has a single-color green LED.
 
 | Pattern | Meaning |
 |---|---|
-| Solid | Keyboard and mouse are both ready |
-| Three short flashes, then a pause | Type `739241` on the keyboard and press Enter now |
-| One 100 ms pulse every 2 seconds | Keyboard ready; mouse absent |
-| Two 100 ms pulses every 2 seconds | Mouse ready; keyboard absent |
+| Solid | Keyboard and mouse are ready |
+| Three short flashes, then a pause | Type `739241` on the keyboard and press Enter |
+| One short pulse every 2 seconds | Keyboard ready; mouse absent |
+| Two short pulses every 2 seconds | Mouse ready; keyboard absent |
 | 500 ms on / 500 ms off | Neither role is ready |
-| 200 ms on / 200 ms off | A connection, security, or discovery operation is active |
+| 200 ms on / 200 ms off | Connection, security, or discovery is active |
 
-After a rejected enrollment attempt, a long green lead pulse followed by one
-to six short pulses reports the failed stage for 20 seconds: 1 connection,
-2 security, 3 HIDS service, 4 Report Map, 5 runtime report, or 6 internal.
-This diagnostic behavior identified the original M196 failure at stage 2.
+After a rejected enrollment, a long pulse followed by one to six short pulses
+reports the failed stage for 20 seconds: connection, security, HIDS service,
+Report Map, runtime report, or internal failure respectively.
 
-For a maintenance image, solid means its clear operation completed. A rapid
-150 ms blink means that operation failed. Reflash the normal firmware after a
-maintenance image succeeds.
+## Compatibility
 
-## Reconnect and failure behavior
+Keyboard support includes standard keyboard/keypad usages, modifiers, function
+keys, navigation keys, multiple BLE Report IDs, and compatible one-bit NKRO
+maps translated to USB 6KRO.
 
-Known devices reconnect independently with a one-second backoff. A sleeping
-device may need a key press or mouse movement to advertise again. If one link
-fails, the other is not intentionally disconnected.
+Mouse support includes up to five buttons, relative 8- or 16-bit X/Y, vertical
+wheel, and horizontal pan. Large movement deltas are split into safe USB
+reports rather than discarded.
 
-Every terminal path invalidates that role's generation and places an
-all-keys-up or all-buttons-up report ahead of newer state. USB removes a report
-from the mailbox only after TinyUSB confirms transfer completion. This design
-prevents stale input from an old BLE connection and prevents release reports
-from being dropped behind a full queue.
+Current intentional limits:
 
-## Firmware files
+- BLE HID over GATT (HOGP) only; Bluetooth Classic-only and proprietary
+  2.4 GHz-only devices cannot pair with the Pico;
+- one keyboard and one mouse, with one HIDS service each;
+- no absolute mouse/digitizer input;
+- no consumer/media, system-control, macro, or vendor-key forwarding;
+- no keyboard Caps/Num/Scroll LED output forwarding;
+- no combo keyboard-and-mouse peripheral in one BLE connection; and
+- malformed, oversized, ambiguous, or unsupported Report Maps are rejected.
 
-The release directory contains:
+Device names are never trusted to decide a role. The firmware connects,
+retrieves the Report Map, validates it with bounded parsing, and classifies the
+device from standard HID usages before saving it.
 
-- `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` — current normal firmware,
-  including the physically tested M196 compatibility fix;
-- `pico_w_dual_ble_hid_bridge_M196_COMPATIBILITY_TEST.uf2` — exact M196 test
-  image, byte-identical to the current normal firmware;
-- `pico_w_dual_ble_hid_bridge_M196_ACTIVE_SCAN_TEST.uf2` and
-  `pico_w_dual_ble_hid_bridge_M196_DIAGNOSTIC.uf2` — superseded investigation
-  images retained for traceability;
-- `pico_w_clear_keyboard_pairing_MAINTENANCE.uf2`;
-- `pico_w_clear_mouse_pairing_MAINTENANCE.uf2`; and
-- `pico_w_clear_all_pairings_MAINTENANCE.uf2`.
+## Security and privacy
 
-Verify downloads against `release/SHA256SUMS.txt`. The normal firmware SHA-256
-is `7FA5350C1624AB35790336BA7B0E118A837E3831F66C1D5CA23C2DB2306C3A78`.
+- Unknown devices are considered only while an empty-role enrollment window is
+  open and are ignored during normal operation.
+- Keyboards require the fixed-passkey event plus an authenticated 16-byte LE
+  Secure Connections bond.
+- Mice use encrypted, bonded Just Works with a standards-compatible 7- to
+  16-byte key; legacy fallback is accepted for mouse interoperability.
+- Numeric Comparison, passkey entry on the Pico, and OOB pairing are not
+  supported.
+- Firmware has no internet connection, telemetry, cloud service, or runtime USB
+  storage interface.
 
-Use the normal image for first installation. Maintenance images are only for
-deliberately clearing role state and must be followed by reflashing the normal
-image.
+The fixed keyboard code is public, and mouse Just Works does not authenticate
+the peer against an active attacker. Keep unrelated devices out of pairing mode
+during the three-minute enrollment window.
 
-Follow the [beginner flashing guide](docs/beginner-flashing.md) exactly.
+## How it works
 
-## Build and verification
+USB descriptors are fixed from startup. Interface 0 is a boot-capable keyboard
+on endpoint `0x81`; interface 1 is a boot-capable mouse on endpoint `0x82`.
+There are no USB Report IDs because each function has its own interface.
 
-- [Reproducible build](docs/build.md)
-- [Test report](docs/test-report.md)
-- [Code-review report](docs/code-review.md)
-- [Adversarial-review report](docs/adversarial-review.md)
-- [Risks and limitations](docs/risks-and-limitations.md)
-- [Assumptions and evidence](docs/assumptions.md)
-- [Recovery guide](docs/recovery.md)
-- [Troubleshooting](docs/troubleshooting.md)
-- [First hardware test plan](docs/first-hardware-test.md)
-- [Verified devices](docs/verified_devices.md)
+RP2040 Core 0 services TinyUSB. Core 1 owns BTstack and the CYW43439 radio.
+Keyboard and mouse have independent BLE contexts, persistent identities,
+generations, and bounded cross-core mailboxes. Disconnect paths prioritize
+all-keys-up or all-buttons-up reports so stale input cannot remain held.
 
-## Xbox caveat
+Read [architecture.md](docs/architecture.md) for the design decisions and
+[test-report.md](docs/test-report.md) for the exact evidence boundary.
 
-Microsoft documents keyboard and mouse support on Xbox, but game support is
-title-specific. Whether Xbox Series X accepts this exact composite topology is
-**NOT TESTED**. Complete all PC stages in the hardware plan first. During normal
-operation this firmware is USB device-only and advertises only two HID
-interfaces; it does not enumerate as storage, CDC, gamepad, controller, or a
-vendor-specific device.
+## Build and test
 
-## Lineage and license
+The project pins Raspberry Pi Pico SDK 2.2.0 and targets `pico_w`. See
+[docs/build.md](docs/build.md) for the reproducible Windows build and native
+host-test commands.
 
-The clean baseline was Shiomachi Software's
-[`picow_ble_usb_hid_bridge`](https://github.com/shiomachisoft/picow_ble_usb_hid_bridge)
-at commit `2c6a303d1f172e56b271283af978efdcc483a389` (tag `20260830_7`).
-The dynamic single-device forwarding architecture was replaced, while required
-TinyUSB and BlueKitchen attribution was preserved. See [LICENSE.TXT](LICENSE.TXT).
-The inherited BlueKitchen demo terms include a non-commercial condition; review
-the full license before redistribution or commercial use.
+Useful engineering records:
+
+- [test report](docs/test-report.md)
+- [verified devices](docs/verified_devices.md)
+- [troubleshooting](docs/troubleshooting.md)
+- [recovery](docs/recovery.md)
+- [risks and limitations](docs/risks-and-limitations.md)
+- [code review](docs/code-review.md)
+- [adversarial review](docs/adversarial-review.md)
+- [agent handoff](HANDOFF.md)
+
+SHA-256 checksums for distributed UF2 files are in
+[`release/SHA256SUMS.txt`](release/SHA256SUMS.txt).
+
+## Contributing
+
+Compatibility reports are especially valuable. Open a device report with the
+exact keyboard/mouse model, board revision, firmware hash, host, LED pattern,
+and reproduction steps. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Origin and credit
+
+This repository builds on the original work by
+[Shiomachi Software](https://github.com/shiomachisoft) in
+[`shiomachisoft/picow_ble_usb_hid_bridge`](https://github.com/shiomachisoft/picow_ble_usb_hid_bridge).
+Its Git history through
+[commit `2c6a303d1f172e56b271283af978efdcc483a389`](https://github.com/shiomachisoft/picow_ble_usb_hid_bridge/commit/2c6a303d1f172e56b271283af978efdcc483a389)
+is retained in this repository.
+
+The upstream project established the Pico W BLE-central-to-USB-HID foundation
+using Raspberry Pi's BTstack integration and TinyUSB. This derivative adds the
+simultaneous two-device architecture, fixed dual USB topology, defensive Report
+Map compiler, role-specific persistence, keyboard passkey workflow, broad mouse
+security compatibility, failure diagnostics, maintenance images, host tests,
+and Xbox-focused documentation.
+
+Upstream also credits
+[`mateibarbu19`](https://github.com/mateibarbu19) for work in its 20260810
+release. TinyUSB and BlueKitchen attribution is preserved in
+[LICENSE.TXT](LICENSE.TXT) and [NOTICE.md](NOTICE.md).
+
+## License and trademark notice
+
+This is **non-commercial software**. The inherited BlueKitchen demo terms
+restrict redistribution, use, and modification to personal benefit and prohibit
+commercial purpose or monetary gain. Read [LICENSE.TXT](LICENSE.TXT) before
+using or redistributing the project.
+
+Xbox is a trademark of Microsoft. Logitech product names are trademarks of
+Logitech. This project is independent, unofficial, and not endorsed by
+Microsoft, Logitech, Raspberry Pi, Shiomachi Software, BlueKitchen, or TinyUSB.

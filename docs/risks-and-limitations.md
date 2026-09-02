@@ -2,10 +2,10 @@
 
 ## Release status
 
-The artifact remains **PRE-HARDWARE TEST**. Pico W boot and both intended BLE
-peripherals have partial PC passes, and both roles passed in The Sims 4 on Xbox
-Series X. Complete USB inspection, reconnect/stress, actual current, latency,
-and broader Xbox game behavior have not been tested.
+The artifact is a **public beta**. Pico W boot and both intended BLE peripherals
+have PC passes, and both roles passed in The Sims 4 on Xbox Series X. Complete
+USB inspection, extended reconnect/stress, actual current, latency, and broader
+Xbox game behavior have not been tested.
 
 ## Accepted compatibility limits
 

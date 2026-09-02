@@ -8,11 +8,12 @@ Finish and validate defensive firmware for an original Raspberry Pi Pico W that
 bridges one BLE HID keyboard and one BLE HID mouse to two fixed USB HID boot
 interfaces. The target host is an Xbox Series X, but no physical Pico W,
 keyboard, mouse, or Xbox had been tested when the software gate was completed.
-Physical testing is now in progress as recorded below. Until the remaining
-tests pass, the only truthful release label is **PRE_HARDWARE_TEST / HARDWARE
-TEST IN PROGRESS**. Never describe it as Xbox-tested or production-ready.
+Physical testing is now in progress as recorded below. The truthful release
+label is **PUBLIC BETA**: the named Windows/Xbox paths passed, while untested
+devices and games remain unclaimed. Never describe it as production-ready or
+universally Xbox-compatible.
 
-Repository: `https://github.com/n-pouliot/xbox-pico` (private)
+Repository: `https://github.com/n-pouliot/xbox-pico` (public)
 
 Branch: `main`
 
@@ -28,8 +29,8 @@ Upstream baseline: `2c6a303d1f172e56b271283af978efdcc483a389`
 - Logitech M196 (M-R0114) entered pairing mode and Windows could detect it, but
   mouse enrollment did not complete on passive-scan firmware SHA-256
   `FF0EE7D18E4A4F0E420EE7AE4BC2990A069714BBE272E3A277270BA28ED0690F`.
-- The active-scan candidate
-  `release/pico_w_dual_ble_hid_bridge_M196_ACTIVE_SCAN_TEST.uf2`, SHA-256
+- The historical active-scan candidate
+  `pico_w_dual_ble_hid_bridge_M196_ACTIVE_SCAN_TEST.uf2`, SHA-256
   `E40CFF334A855924A02FBE1B62E1FE35740F93F7E81F8BBF742448766082383D`, found
   the mouse but did not enroll it. The diagnostic build then repeatedly showed
   failure stage 2, proving that security negotiation—not discovery, HIDS, or
@@ -37,7 +38,7 @@ Upstream baseline: `2c6a303d1f172e56b271283af978efdcc483a389`
 - The mouse-only security policy was broadened to the mandatory HOGP
   unauthenticated Level 2 baseline: encrypted bonded Just Works, 7- to 16-byte
   keys, with legacy fallback accepted. The strict keyboard policy is unchanged.
-- `release/pico_w_dual_ble_hid_bridge_M196_COMPATIBILITY_TEST.uf2`, SHA-256
+- Historical `pico_w_dual_ble_hid_bridge_M196_COMPATIBILITY_TEST.uf2`, SHA-256
   `7FA5350C1624AB35790336BA7B0E118A837E3831F66C1D5CA23C2DB2306C3A78`, then
   physically paired the M196. Mouse input and keyboard input both worked on
   Windows. The LED first showed the mouse-only two-pulse state while the saved
@@ -57,8 +58,10 @@ compatibility change; its authoritative hash is recorded below and in
 `release/SHA256SUMS.txt`.
 
 The final artifact/documentation update is the newest commit on `main` after
-the final push. GitHub reported repository visibility `PRIVATE`; verify local
-and remote synchronization with `git status -sb` before resuming.
+the final push. The repository was prepared for public release with explicit
+upstream attribution, a non-commercial license warning, community templates,
+and a simplified four-UF2 release set. Verify GitHub visibility plus local and
+remote synchronization before resuming.
 
 ## Current implementation
 
@@ -128,14 +131,13 @@ at `0x101FE000` on the 2 MiB board. The current normal UF2 is 940,032 B.
 
 ## Pinned build environment
 
-- CMake: `C:\Program Files\CMake\bin\cmake.exe`
-- Ninja: `C:\Users\n_p-i\AppData\Local\Microsoft\WinGet\Packages\Ninja-build.Ninja_Microsoft.Winget.Source_8wekyb3d8bbwe\ninja.exe`
-- LLVM/Clang: `C:\Program Files\LLVM\bin`
+- CMake: 4.4.3 (the tested machine used the standard Windows installation)
+- Ninja: 1.13.2
+- LLVM/Clang: 22.1.8
 - Arm GNU: locate the `arm-none-eabi-gcc.exe` recorded in the final build's
   `CMakeCache.txt`; toolchain version must be 14.2.1.
-- Pico SDK: `C:\Users\n_p-i\.cache\xbox-pico-tools\pico-sdk-2.2.0`
-- Python with PyCryptodome:
-  `C:\Users\n_p-i\AppData\Local\Programs\Python\Python312\python.exe`
+- Pico SDK: 2.2.0 at a caller-selected `PICO_SDK_PATH`
+- Python: 3.12.10 with PyCryptodome 3.23.0
 
 For deterministic BTstack GATT generation, always pass the Python 3.12 path
 above. The machine's Python 3.14 lacks `Crypto`, causing a random generated GATT
@@ -148,9 +150,9 @@ Ninja on `PATH`; set host `CC=clang.exe`, `CXX=clang++.exe`, and
 
 ```text
 -DPICO_BOARD=pico_w
--DPICO_SDK_PATH=C:\Users\n_p-i\.cache\xbox-pico-tools\pico-sdk-2.2.0
+-DPICO_SDK_PATH=C:\pico-sdk-2.2.0
 -DPICO_COMPILER=pico_arm_cortex_m0plus_gcc
--DPython3_EXECUTABLE=C:\Users\n_p-i\AppData\Local\Programs\Python\Python312\python.exe
+-DPython3_EXECUTABLE=C:\Path\To\Python312\python.exe
 -DCMAKE_BUILD_TYPE=Release
 -G Ninja
 ```
@@ -160,8 +162,8 @@ compiler remains Arm GNU because `PICO_COMPILER` is explicitly pinned.
 
 The exact packaged files are in `release/`; `release/SHA256SUMS.txt` is the
 authoritative manifest. The normal image is
-`pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2`; it is byte-identical to the
-physically successful `pico_w_dual_ble_hid_bridge_M196_COMPATIBILITY_TEST.uf2`.
+`xbox-pico-v0.1.0-beta.1-pico-w.uf2`; it is byte-identical to the physically
+successful historical M196 compatibility image.
 
 ## Continuation checklist
 

@@ -7,7 +7,7 @@ Start with a Windows PC. Do not make your first test on the Xbox.
 - an original Raspberry Pi Pico W;
 - a USB **data** cable, not a charge-only cable;
 - the cable's small Micro-USB plug for the Pico W;
-- `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` from the repository's
+- `xbox-pico-v0.1.0-beta.1-pico-w.uf2` from the repository's
   `release` folder.
 
 The Micro-USB socket is the only USB socket on the Pico W. BOOTSEL is the small
@@ -24,12 +24,12 @@ white pushbutton on the top of the board, close to that socket.
 6. Windows should show a removable drive named `RPI-RP2`. This drive is the
    RP2040 ROM bootloader, not the normal bridge firmware.
 7. Copy exactly
-   `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` onto `RPI-RP2`.
+   `xbox-pico-v0.1.0-beta.1-pico-w.uf2` onto `RPI-RP2`.
 8. The drive should disappear automatically. The Pico reboots into the copied
    firmware; do not unplug it while the copy is in progress.
-9. The onboard LED should begin a pattern. Since this has not yet been checked
-   on physical hardware, stop and report the result if the drive does not
-   disappear or the board behaves unexpectedly.
+9. The onboard LED should begin a pattern. This behavior passed on the tested
+   Pico W; stop and report the result if the drive does not disappear or the
+   board behaves unexpectedly.
 
 Copying the normal UF2 does not erase an existing role record. Use a maintenance
 image only when intentionally changing pairing state.
@@ -97,14 +97,14 @@ the flash-connected BOOTSEL signal while Bluetooth runs on the other core.
    - mouse: `pico_w_clear_mouse_pairing_MAINTENANCE.uf2`;
    - both: `pico_w_clear_all_pairings_MAINTENANCE.uf2`.
 3. Wait for the maintenance program to boot. Solid LED means the clear operation
-   reports success; a 150 ms rapid blink reports failure. Both patterns remain
-   has not yet been physically tested.
+   reports success; a 150 ms rapid blink reports failure. The maintenance
+   indicators have not yet been physically tested.
    If power is interrupted or the rapid failure blink appears, run the
    **clear-all** maintenance UF2 next; do not simply rerun the same role image.
 4. Disconnect the Pico.
 5. Re-enter `RPI-RP2` with BOOTSEL.
 6. Copy the normal
-   `pico_w_dual_ble_hid_bridge_PRE_HARDWARE_TEST.uf2` again.
+   `xbox-pico-v0.1.0-beta.1-pico-w.uf2` again.
 7. Put only the intended replacement device into pairing mode during the new
    180-second empty-role window.
 
